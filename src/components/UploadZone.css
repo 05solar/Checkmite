@@ -1,0 +1,33 @@
+.upload {
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: 48px 28px;
+  text-align: center;
+  transition: all .18s;
+  cursor: pointer;
+}
+.upload:hover,
+.upload.drag {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.upload .up-ic {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 16px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+.upload.drag .up-ic { transform: translateY(-2px); }
+.upload .up-ic svg { width: 24px; height: 24px; }
+
+.up-title  { font-weight: 600; font-size: 15.5px; }
+.up-desc   { color: var(--text-2); font-size: 13.5px; margin-top: 5px; }
+.up-formats { color: var(--text-3); font-size: 12px; margin-top: 14px; font-family: var(--mono); }

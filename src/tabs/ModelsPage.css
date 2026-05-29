@@ -1,0 +1,71 @@
+.model-group { margin-bottom: 16px; }
+
+.mg-head { display: flex; align-items: center; gap: 10px; margin: 0; }
+.mg-ic {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+}
+.mg-ic svg { width: 18px; height: 18px; }
+.mg-name { font-weight: 700; font-size: 15px; }
+.mg-sub  { font-size: 12.5px; color: var(--text-3); }
+
+/* ---- 버전 테이블 ---- */
+.ver-table { display: flex; flex-direction: column; }
+.vt-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 4px;
+  border-top: 1px solid var(--border);
+}
+.vt-row:first-child { border-top: none; }
+
+.vt-main   { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.vt-tag    { font-family: var(--mono); font-size: 13px; font-weight: 600; }
+.vt-name   { font-size: 13px; color: var(--text-2); }
+.vt-metric { font-family: var(--mono); font-size: 13px; color: var(--text-2); text-align: right; }
+.vt-metric small { color: var(--text-3); font-family: var(--sans); display: block; font-size: 11px; }
+.vt-date   { font-size: 12.5px; color: var(--text-3); font-family: var(--mono); }
+.vt-act    { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ---- 모달 ---- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--text) 28%, transparent);
+  backdrop-filter: blur(3px);
+}
+.modal-card { width: 460px; max-width: 100%; box-shadow: var(--shadow-lg); }
+.modal-upload { padding: 36px 20px; }
+.modal-uploading { padding: 12px 4px 8px; }
+.modal-name-form { display: flex; flex-direction: column; gap: 14px; }
+.modal-label { font-size: 12.5px; font-weight: 600; color: var(--text-2); }
+
+/* ---- fc-x (재사용) ---- */
+.fc-x {
+  border: none;
+  background: none;
+  color: var(--text-3);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.fc-x:hover { background: var(--surface-3); color: var(--text); }
+
+@media (max-width: 720px) {
+  .vt-row { grid-template-columns: 1fr auto; }
+  .vt-metric, .vt-date { display: none; }
+}

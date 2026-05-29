@@ -1,0 +1,163 @@
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: var(--nav-h);
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 0 28px;
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  backdrop-filter: saturate(1.4) blur(14px);
+  -webkit-backdrop-filter: saturate(1.4) blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+
+/* ---- 브랜드 ---- */
+.brand { display: flex; align-items: center; gap: 11px; user-select: none; }
+
+.brand-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--accent);
+  display: grid;
+  place-items: center;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #000 8%, transparent);
+}
+.brand-mark span {
+  width: 9px;
+  height: 9px;
+  background: var(--on-accent);
+  transform: rotate(45deg);
+  border-radius: 2px;
+}
+
+.brand-name { font-weight: 700; font-size: 18px; letter-spacing: -.02em; }
+.brand-name b { color: var(--accent); font-weight: 700; }
+
+/* ---- 탭 ---- */
+.nav-tabs { display: flex; align-items: center; gap: 2px; height: 100%; }
+.nav-tab {
+  position: relative;
+  border: none;
+  background: none;
+  color: var(--text-2);
+  font-size: 14.5px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: color .15s, background .15s;
+}
+.nav-tab:hover { color: var(--text); background: var(--surface-2); }
+.nav-tab.active { color: var(--accent); font-weight: 600; }
+.nav-tab.active::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: -19px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+.nav-tab svg { width: 17px; height: 17px; }
+
+/* ---- 우측 영역 ---- */
+.nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+/* ---- 아이콘 버튼 ---- */
+.icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  display: grid;
+  place-items: center;
+  color: var(--text-2);
+  transition: all .15s;
+}
+.icon-btn:hover { color: var(--text); border-color: var(--border-strong); }
+.icon-btn svg { width: 18px; height: 18px; }
+
+/* ---- 버전 드롭다운 ---- */
+.ver { position: relative; }
+.ver-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 7px 11px 7px 12px;
+  color: var(--text);
+  transition: border-color .15s, background .15s;
+  min-width: 200px;
+}
+.ver-btn:hover { border-color: var(--border-strong); }
+
+.ver-btn .ver-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  flex: none;
+}
+
+.ver-meta { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; min-width: 0; }
+.ver-meta .vl { font-size: 11px; color: var(--text-3); font-weight: 500; }
+.ver-meta .vv { font-size: 13px; font-weight: 600; }
+
+.ver-btn .chev { margin-left: auto; color: var(--text-3); width: 15px; height: 15px; transition: transform .18s; }
+.ver-btn[aria-expanded="true"] .chev { transform: rotate(180deg); }
+
+.ver-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 320px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  z-index: 60;
+  animation: pop .14s ease;
+}
+
+.ver-menu .vm-head {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  padding: 8px 10px 6px;
+}
+
+.ver-item {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: var(--text);
+  transition: background .12s;
+}
+.ver-item:hover { background: var(--surface-2); }
+.ver-item .vi-body { min-width: 0; flex: 1; }
+.ver-item .vi-name { font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.ver-item .vi-sub  { font-size: 12px; color: var(--text-3); margin-top: 1px; }
+.ver-item .vi-check { width: 16px; height: 16px; color: var(--accent); flex: none; }
+
+@media (max-width: 720px) {
+  .nav-tab span { display: none; }
+}

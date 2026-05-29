@@ -1,0 +1,20 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 99px;
+  border: 1px solid transparent;
+}
+.badge .b-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+.badge-accent  { background: var(--accent-soft);  color: var(--accent); }
+.badge-neutral { background: var(--surface-2);    color: var(--text-2); border-color: var(--border); }
+.badge-low     { background: var(--accent-soft);  color: var(--accent); }
+.badge-mid     { background: #FBF1DF; color: #9A6B1E; }
+.badge-high    { background: #FBE6E2; color: #B5462F; }
+
+[data-theme="dark"] .badge-mid  { background: #2C2410; color: #D8B468; }
+[data-theme="dark"] .badge-high { background: #2E1B16; color: #E08C77; }

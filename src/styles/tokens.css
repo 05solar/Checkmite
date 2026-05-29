@@ -1,0 +1,82 @@
+/* ============================================================
+   CheckMite — Design Tokens (Single Source of Truth)
+   포인트 색상 변경: --accent 값만 수정하면 전체 UI에 반영됩니다.
+   ============================================================ */
+
+:root {
+  /* ---- 배경 & 서피스 (light) ---- */
+  --bg:           #F4F7F4;
+  --surface:      #FFFFFF;
+  --surface-2:    #EEF2EF;
+  --surface-3:    #E6ECE7;
+
+  /* ---- 테두리 ---- */
+  --border:       #E1E8E3;
+  --border-strong:#D2DCD5;
+
+  /* ---- 텍스트 ---- */
+  --text:         #1A1F1C;
+  --text-2:       #586259;
+  --text-3:       #8B958E;
+
+  /* ---- 포인트 색상 (여기 하나만 바꾸면 전체 반영) ---- */
+  --accent:       #5D866C;
+  --accent-hover: #4E7059;
+  --accent-press: #446050;
+  --accent-soft:  #E7EFEA;
+  --accent-soft-2:#D7E5DC;
+  --on-accent:    #FFFFFF;
+
+  /* ---- 응애 종류별 색상 ---- */
+  --prey:         #6B7770;
+  --prey-soft:    #EBEEEC;
+  --predator:     #5D866C;
+  --predator-soft:#E7EFEA;
+
+  /* ---- 그림자 ---- */
+  --shadow-sm: 0 1px 2px rgba(26,31,28,.05), 0 1px 3px rgba(26,31,28,.04);
+  --shadow-md: 0 2px 6px rgba(26,31,28,.06), 0 6px 16px rgba(26,31,28,.06);
+  --shadow-lg: 0 8px 30px rgba(26,31,28,.10);
+
+  /* ---- 모서리 ---- */
+  --radius:    12px;
+  --radius-sm: 8px;
+  --radius-lg: 18px;
+
+  /* ---- 폰트 ---- */
+  --mono: "SF Mono", "JetBrains Mono", ui-monospace, "Cascadia Code", Menlo, monospace;
+  --sans: "Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif;
+
+  /* ---- 레이아웃 ---- */
+  --nav-h: 64px;
+  --maxw:  1240px;
+}
+
+[data-theme="dark"] {
+  --bg:           #0E1210;
+  --surface:      #161B18;
+  --surface-2:    #1D231F;
+  --surface-3:    #242B26;
+  --border:       #2A322C;
+  --border-strong:#374038;
+
+  --text:         #EAF0EC;
+  --text-2:       #9CA8A0;
+  --text-3:       #6B756E;
+
+  --accent:       #7BA88C;
+  --accent-hover: #8DB89C;
+  --accent-press: #6E9B80;
+  --accent-soft:  #1A271F;
+  --accent-soft-2:#21302731;
+  --on-accent:    #0E1210;
+
+  --prey:         #97A29B;
+  --prey-soft:    #20261F;
+  --predator:     #7BA88C;
+  --predator-soft:#1A271F;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-md: 0 2px 8px rgba(0,0,0,.45);
+  --shadow-lg: 0 10px 36px rgba(0,0,0,.55);
+}
