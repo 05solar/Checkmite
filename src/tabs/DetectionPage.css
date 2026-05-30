@@ -1,5 +1,64 @@
 .conf-list { display: flex; flex-direction: column; }
 
+.det-preview {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.det-preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.det-empty {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+}
+
+.det-list-empty {
+  padding: 12px 2px 2px;
+  color: var(--text-3);
+  font-size: 13px;
+}
+
+.det-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--border));
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.det-error svg {
+  width: 16px;
+  height: 16px;
+  color: var(--danger);
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.ratio-seg.is-empty {
+  flex: 1;
+  background: var(--surface-3);
+  color: var(--text-3);
+}
+
 .conf-row {
   display: grid;
   grid-template-columns: 26px 1fr auto;
