@@ -13,7 +13,7 @@
 .conf-id  { font-family: var(--mono); font-size: 11.5px; color: var(--text-3); }
 .conf-mid { min-width: 0; }
 .conf-name { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
-.conf-name .cn-sw { width: 8px; height: 8px; border-radius: 2px; }
+.conf-name .cn-sw { width: 8px; height: 8px; border-radius: 0; }
 .conf-meter { height: 5px; background: var(--surface-3); border-radius: 99px; margin-top: 7px; overflow: hidden; }
 .conf-meter > i { display: block; height: 100%; border-radius: 99px; }
 .conf-val { font-family: var(--mono); font-size: 13px; font-weight: 600; }

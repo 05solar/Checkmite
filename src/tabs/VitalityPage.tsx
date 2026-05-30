@@ -8,7 +8,7 @@ import { Badge, gradeOf } from '../components/Badge';
 import { Gauge } from '../components/Gauge';
 import { Heatmap } from '../components/Heatmap';
 import { LineChart } from '../components/LineChart';
-import type { Version, PhaseId } from '../types';
+import type { PhaseId } from '../types';
 
 const VIT_STEPS = [
   '영상 디코딩 및 프레임 분할…',
@@ -38,11 +38,10 @@ const HEAT = (() => {
 })();
 
 interface VitalityResultProps {
-  version: Version;
   onReset: () => void;
 }
 
-function VitalityResult({ version, onReset }: VitalityResultProps) {
+function VitalityResult({ onReset }: VitalityResultProps) {
   const level = VIT_SCORE < 40 ? '낮음' : VIT_SCORE < 70 ? '보통' : '높음';
 
   return (
@@ -87,7 +86,6 @@ function VitalityResult({ version, onReset }: VitalityResultProps) {
             <div className="card-title"><Icon name="cpu" />측정 정보</div>
             <Badge kind="accent" dot>완료</Badge>
           </div>
-          <div className="metric-row"><span className="mr-k">사용 모델</span><span className="mr-v mono">{version.tag}</span></div>
           <div className="metric-row"><span className="mr-k">분석 프레임</span><span className="mr-v mono">450 / 450</span></div>
           <div className="metric-row"><span className="mr-k">처리 시간</span><span className="mr-v mono">11.6초</span></div>
         </div>
@@ -101,11 +99,7 @@ function VitalityResult({ version, onReset }: VitalityResultProps) {
   );
 }
 
-interface VitalityPageProps {
-  version: Version;
-}
-
-export function VitalityPage({ version }: VitalityPageProps) {
+export function VitalityPage() {
   const [phase, setPhase] = useState<PhaseId>('idle');
 
   return (
@@ -113,7 +107,7 @@ export function VitalityPage({ version }: VitalityPageProps) {
       <div className="page-head">
         <div className="page-eyebrow"><span className="pe-dot" />활력도 측정 · VITALITY</div>
         <h1 className="page-title">영상 기반 활력도 측정</h1>
-        <p className="page-desc">영상을 업로드하면 모델이 개체들의 움직임을 분석해 0~100점의 활력도 점수와 움직임 히트맵을 산출합니다.</p>
+        <p className="page-desc">영상을 업로드하면 서버가 개체들의 움직임을 분석해 0~100점의 활력도 점수와 움직임 히트맵을 산출합니다.</p>
       </div>
 
       {phase === 'idle' && (
@@ -132,13 +126,13 @@ export function VitalityPage({ version }: VitalityPageProps) {
         <div className="grid" style={{ maxWidth: 560 }}>
           <FileChip name="mite_activity_clip.mp4" meta="1920 × 1080 · 15초 · 450 프레임 · 36 MB" kind="video" onRemove={() => setPhase('idle')} />
           <button className="btn btn-primary btn-lg btn-block" onClick={() => setPhase('proc')}>
-            <Icon name="pulse" />{version.tag} 모델로 활력도 측정
+            <Icon name="pulse" />활력도 측정
           </button>
         </div>
       )}
 
       {phase === 'proc' && <Processing steps={VIT_STEPS} onDone={() => setPhase('result')} duration={3000} />}
-      {phase === 'result' && <VitalityResult version={version} onReset={() => setPhase('idle')} />}
+      {phase === 'result' && <VitalityResult onReset={() => setPhase('idle')} />}
     </div>
   );
 }

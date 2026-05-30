@@ -5,7 +5,7 @@
 
 :root {
   /* ---- 배경 & 서피스 (light) ---- */
-  --bg:           #F4F7F4;
+  --bg:           #F6F6F6;
   --surface:      #FFFFFF;
   --surface-2:    #EEF2EF;
   --surface-3:    #E6ECE7;
@@ -39,13 +39,13 @@
   --shadow-lg: 0 8px 30px rgba(26,31,28,.10);
 
   /* ---- 모서리 ---- */
-  --radius:    12px;
+  --radius:    0;
   --radius-sm: 8px;
   --radius-lg: 18px;
 
   /* ---- 폰트 ---- */
   --mono: "SF Mono", "JetBrains Mono", ui-monospace, "Cascadia Code", Menlo, monospace;
-  --sans: "Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif;
+  --sans: Pretendard, -apple-system, system-ui, sans-serif;
 
   /* ---- 레이아웃 ---- */
   --nav-h: 64px;

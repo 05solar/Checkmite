@@ -10,7 +10,7 @@
 .vid-play {
   width: 34px;
   height: 34px;
-  border-radius: 9px;
+  border-radius: 0;
   border: none;
   background: var(--accent);
   color: var(--on-accent);

@@ -27,13 +27,13 @@ export function Processing({ steps, onDone, duration = 2600 }: ProcessingProps) 
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [duration, onDone, steps]);
 
   return (
     <div className="card">
       <div className="proc">
         <div className="proc-ring" />
-        <div className="proc-title">모델 추론 중…</div>
+        <div className="proc-title">서버 분석 중...</div>
         <div className="proc-step">{steps[stepIdx]}</div>
         <div className="proc-bar"><i style={{ width: pct + '%' }} /></div>
         <div className="proc-pct">{pct}%</div>

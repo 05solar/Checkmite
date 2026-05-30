@@ -11,7 +11,7 @@
 .file-chip .fc-ic {
   width: 40px;
   height: 40px;
-  border-radius: 9px;
+  border-radius: 0;
   background: var(--accent-soft);
   display: grid;
   place-items: center;
@@ -30,7 +30,7 @@
   color: var(--text-3);
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: 0;
   display: grid;
   place-items: center;
 }

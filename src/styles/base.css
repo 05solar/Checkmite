@@ -2,6 +2,69 @@
    CheckMite — Base & Reset Styles
    ============================================================ */
 
+@font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Thin.woff2') format('woff2');
+    font-weight: 100;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-ExtraLight.woff2') format('woff2');
+    font-weight: 200;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Light.woff2') format('woff2');
+    font-weight: 300;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Medium.woff2') format('woff2');
+    font-weight: 500;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-SemiBold.woff2') format('woff2');
+    font-weight: 600;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Bold.woff2') format('woff2');
+    font-weight: 700;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-ExtraBold.woff2') format('woff2');
+    font-weight: 800;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Pretendard';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Black.woff2') format('woff2');
+    font-weight: 900;
+    font-display: swap;
+}
+
 * { box-sizing: border-box; }
 
 html, body {
@@ -71,7 +134,7 @@ button { font-family: inherit; cursor: pointer; }
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border-radius: 10px;
+  border-radius: 0;
   padding: 11px 18px;
   font-size: 14.5px;
   font-weight: 600;
@@ -88,7 +151,7 @@ button { font-family: inherit; cursor: pointer; }
 .btn-ghost:hover { border-color: var(--border-strong); background: var(--surface-2); }
 .btn-block { width: 100%; }
 .btn-lg { padding: 13px 22px; font-size: 15px; }
-.btn-sm { padding: 6px 12px; font-size: 12.5px; border-radius: 8px; }
+.btn-sm { padding: 6px 12px; font-size: 12.5px; border-radius: 0; }
 
 /* ---- 통계 ---- */
 .stat {
@@ -98,7 +161,7 @@ button { font-family: inherit; cursor: pointer; }
   padding: 18px;
 }
 .stat-label { font-size: 12.5px; color: var(--text-2); font-weight: 500; display: flex; align-items: center; gap: 7px; }
-.stat-label .sl-sw { width: 9px; height: 9px; border-radius: 3px; }
+.stat-label .sl-sw { width: 9px; height: 9px; border-radius: 0; }
 .stat-value { font-size: 32px; font-weight: 700; letter-spacing: -.03em; margin-top: 8px; line-height: 1; }
 .stat-value small { font-size: 15px; font-weight: 600; color: var(--text-3); margin-left: 3px; letter-spacing: 0; }
 .stat-sub { font-size: 12.5px; color: var(--text-3); margin-top: 7px; }
@@ -124,7 +187,7 @@ button { font-family: inherit; cursor: pointer; }
 .hint svg { width: 17px; height: 17px; color: var(--accent); flex: none; margin-top: 1px; }
 
 /* ---- 비율 바 ---- */
-.ratio-bar { display: flex; height: 38px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+.ratio-bar { display: flex; height: 38px; border-radius: 0; overflow: hidden; border: 1px solid var(--border); }
 .ratio-seg { display: flex; align-items: center; padding: 0 12px; font-size: 13px; font-weight: 700; color: #fff; min-width: 0; transition: flex-basis .5s ease; }
 
 /* ---- 등급 ---- */
@@ -133,7 +196,7 @@ button { font-family: inherit; cursor: pointer; }
 /* ---- 범례 ---- */
 .legend { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-2); }
 .legend .lg-item { display: flex; align-items: center; gap: 7px; }
-.legend .lg-sw { width: 11px; height: 11px; border-radius: 3px; }
+.legend .lg-sw { width: 11px; height: 11px; border-radius: 0; }
 
 /* ---- 애니메이션 ---- */
 .fade-in { animation: fade .35s ease; }

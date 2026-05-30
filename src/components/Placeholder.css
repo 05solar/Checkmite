@@ -24,12 +24,12 @@
   background: var(--surface);
   border: 1px solid var(--border);
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: 0;
   white-space: nowrap;
 }
 
 /* detection boxes */
-.det-box { position: absolute; border-radius: 3px; box-sizing: border-box; }
+.det-box { position: absolute; border-radius: 0; box-sizing: border-box; }
 .det-box .db-tag {
   position: absolute;
   top: -1px;
@@ -38,7 +38,7 @@
   font-size: 10.5px;
   font-weight: 700;
   padding: 2px 6px;
-  border-radius: 4px 4px 4px 0;
+  border-radius: 0;
   font-family: var(--mono);
   white-space: nowrap;
   line-height: 1.3;

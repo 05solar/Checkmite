@@ -7,7 +7,7 @@ import { Processing } from '../components/Processing';
 import { Placeholder } from '../components/Placeholder';
 import { Badge, gradeOf } from '../components/Badge';
 import { LineChart } from '../components/LineChart';
-import type { Version, PhaseId } from '../types';
+import type { PhaseId } from '../types';
 
 const DEN_STEPS = [
   '영상 디코딩 및 프레임 분할…',
@@ -97,11 +97,10 @@ function VideoPlayer({ label, children }: { label: string; children?: React.Reac
 }
 
 interface DensityResultProps {
-  version: Version;
   onReset: () => void;
 }
 
-function DensityResult({ version, onReset }: DensityResultProps) {
+function DensityResult({ onReset }: DensityResultProps) {
   const perCm2 = (PEAK / AREA_CM2).toFixed(1);
   const level = parseFloat(perCm2) < 1.5 ? '낮음' : parseFloat(perCm2) < 3 ? '보통' : '높음';
   const avg = Math.round(FRAME_COUNTS.reduce((a, b) => a + b, 0) / FRAME_COUNTS.length);
@@ -149,7 +148,6 @@ function DensityResult({ version, onReset }: DensityResultProps) {
             <div className="card-title"><Icon name="cpu" />측정 정보</div>
             <Badge kind="accent" dot>완료</Badge>
           </div>
-          <div className="metric-row"><span className="mr-k">사용 모델</span><span className="mr-v mono">{version.tag}</span></div>
           <div className="metric-row"><span className="mr-k">트래커</span><span className="mr-v mono">ByteTrack</span></div>
           <div className="metric-row"><span className="mr-k">분석 프레임</span><span className="mr-v mono">540 / 540</span></div>
           <div className="metric-row"><span className="mr-k">고유 트랙 ID</span><span className="mr-v mono">37개</span></div>
@@ -165,11 +163,7 @@ function DensityResult({ version, onReset }: DensityResultProps) {
   );
 }
 
-interface DensityPageProps {
-  version: Version;
-}
-
-export function DensityPage({ version }: DensityPageProps) {
+export function DensityPage() {
   const [phase, setPhase] = useState<PhaseId>('idle');
 
   return (
@@ -177,7 +171,7 @@ export function DensityPage({ version }: DensityPageProps) {
       <div className="page-head">
         <div className="page-eyebrow"><span className="pe-dot" />밀도 측정 · DENSITY</div>
         <h1 className="page-title">영상 기반 밀도 측정</h1>
-        <p className="page-desc">영상을 업로드하면 모델이 프레임마다 응애를 추적해 마릿수를 집계하고, 단위 면적당 밀도와 등급을 환산합니다.</p>
+        <p className="page-desc">영상을 업로드하면 서버가 프레임마다 응애를 추적해 마릿수를 집계하고, 단위 면적당 밀도와 등급을 환산합니다.</p>
       </div>
 
       {phase === 'idle' && (
@@ -196,13 +190,13 @@ export function DensityPage({ version }: DensityPageProps) {
         <div className="grid" style={{ maxWidth: 560 }}>
           <FileChip name="mite_field_clip.mp4" meta="1920 × 1080 · 18초 · 540 프레임 · 42 MB" kind="video" onRemove={() => setPhase('idle')} />
           <button className="btn btn-primary btn-lg btn-block" onClick={() => setPhase('proc')}>
-            <Icon name="grid" />{version.tag} 모델로 밀도 측정
+            <Icon name="grid" />밀도 측정
           </button>
         </div>
       )}
 
       {phase === 'proc' && <Processing steps={DEN_STEPS} onDone={() => setPhase('result')} duration={3200} />}
-      {phase === 'result' && <DensityResult version={version} onReset={() => setPhase('idle')} />}
+      {phase === 'result' && <DensityResult onReset={() => setPhase('idle')} />}
     </div>
   );
 }

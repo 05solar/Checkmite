@@ -17,7 +17,7 @@
   width: 52px;
   height: 52px;
   margin: 0 auto 16px;
-  border-radius: 14px;
+  border-radius: 0;
   background: var(--surface);
   border: 1px solid var(--border);
   display: grid;

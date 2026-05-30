@@ -6,7 +6,7 @@ import { FileChip } from '../components/FileChip';
 import { Processing } from '../components/Processing';
 import { Placeholder } from '../components/Placeholder';
 import { Badge } from '../components/Badge';
-import type { Version, PhaseId, DetectionBox } from '../types';
+import type { PhaseId, DetectionBox } from '../types';
 
 const DET_BOXES: DetectionBox[] = [
   { id: 1,  cls: 'predator', conf: 0.962, x: 14, y: 22, w: 13, h: 16 },
@@ -30,11 +30,10 @@ const DET_STEPS = [
 ];
 
 interface DetectionResultProps {
-  version: Version;
   onReset: () => void;
 }
 
-function DetectionResult({ version, onReset }: DetectionResultProps) {
+function DetectionResult({ onReset }: DetectionResultProps) {
   const preds = DET_BOXES.filter((b) => b.cls === 'predator').length;
   const preys = DET_BOXES.filter((b) => b.cls === 'prey').length;
   const total = DET_BOXES.length;
@@ -71,7 +70,6 @@ function DetectionResult({ version, onReset }: DetectionResultProps) {
             <div className="card-title"><Icon name="cpu" />추론 정보</div>
             <Badge kind="accent" dot>완료</Badge>
           </div>
-          <div className="metric-row"><span className="mr-k">사용 모델</span><span className="mr-v mono">{version.tag}</span></div>
           <div className="metric-row"><span className="mr-k">처리 시간</span><span className="mr-v mono">0.84초</span></div>
           <div className="metric-row"><span className="mr-k">입력 해상도</span><span className="mr-v mono">1920 × 1080</span></div>
           <div className="metric-row"><span className="mr-k">신뢰도 임계값</span><span className="mr-v mono">0.70</span></div>
@@ -141,11 +139,7 @@ function DetectionResult({ version, onReset }: DetectionResultProps) {
   );
 }
 
-interface DetectionPageProps {
-  version: Version;
-}
-
-export function DetectionPage({ version }: DetectionPageProps) {
+export function DetectionPage() {
   const [phase, setPhase] = useState<PhaseId>('idle');
 
   return (
@@ -153,7 +147,7 @@ export function DetectionPage({ version }: DetectionPageProps) {
       <div className="page-head">
         <div className="page-eyebrow"><span className="pe-dot" />객체 탐지 · OBJECT DETECTION</div>
         <h1 className="page-title">사진 속 응애 탐지</h1>
-        <p className="page-desc">응애가 촬영된 사진을 업로드하면 모델이 천적·해충 개체를 탐지하고, 종류별 마릿수와 개체별 신뢰도를 보여줍니다.</p>
+        <p className="page-desc">응애가 촬영된 사진을 업로드하면 서버가 천적·해충 개체를 탐지하고, 종류별 마릿수와 개체별 신뢰도를 보여줍니다.</p>
       </div>
 
       {phase === 'idle' && (
@@ -162,7 +156,7 @@ export function DetectionPage({ version }: DetectionPageProps) {
           <div className="card">
             <div className="card-head"><div className="card-title"><Icon name="info" />이렇게 동작합니다</div></div>
             <div className="metric-row"><span className="mr-k">1. 업로드</span><span className="mr-v" style={{ color: 'var(--text-2)', fontWeight: 500 }}>응애 사진 선택</span></div>
-            <div className="metric-row"><span className="mr-k">2. 추론</span><span className="mr-v" style={{ color: 'var(--text-2)', fontWeight: 500 }}>{version.tag} 모델 실행</span></div>
+            <div className="metric-row"><span className="mr-k">2. 추론</span><span className="mr-v" style={{ color: 'var(--text-2)', fontWeight: 500 }}>서버 분석 실행</span></div>
             <div className="metric-row"><span className="mr-k">3. 결과</span><span className="mr-v" style={{ color: 'var(--text-2)', fontWeight: 500 }}>박스 · 마릿수 · 신뢰도</span></div>
           </div>
         </div>
@@ -172,13 +166,13 @@ export function DetectionPage({ version }: DetectionPageProps) {
         <div className="grid" style={{ maxWidth: 560 }}>
           <FileChip name="mite_sample_01.jpg" meta="2,480 × 1,395 · 3.1 MB" kind="image" onRemove={() => setPhase('idle')} />
           <button className="btn btn-primary btn-lg btn-block" onClick={() => setPhase('proc')}>
-            <Icon name="scan" />{version.tag} 모델로 탐지 실행
+            <Icon name="scan" />탐지 실행
           </button>
         </div>
       )}
 
       {phase === 'proc' && <Processing steps={DET_STEPS} onDone={() => setPhase('result')} />}
-      {phase === 'result' && <DetectionResult version={version} onReset={() => setPhase('idle')} />}
+      {phase === 'result' && <DetectionResult onReset={() => setPhase('idle')} />}
     </div>
   );
 }

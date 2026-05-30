@@ -26,8 +26,8 @@ export function UploadZone({ accept, kind, onPick }: UploadZoneProps) {
       </div>
       <div className="up-desc">
         {isVideo
-          ? '응애가 촬영된 영상을 올리면 모델이 트래킹·분석합니다'
-          : '응애가 촬영된 사진을 올리면 모델이 객체를 탐지합니다'}
+          ? '응애가 촬영된 영상을 올리면 서버에서 트래킹·분석합니다'
+          : '응애가 촬영된 사진을 올리면 서버에서 객체를 탐지합니다'}
       </div>
       <div className="up-formats">{accept}</div>
     </div>
