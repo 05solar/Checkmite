@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import './GrowthPage.css';
 import { Badge } from '../components/Badge';
 import { BoxSelector } from '../components/BoxSelector';
 import { Icon } from '../components/Icons';
 import { LineChart } from '../components/LineChart';
+import { api } from '../api/client';
+import type { GrowthResult } from '../api/client';
 import type { CultureBox, Measurement } from '../types';
 
 interface GrowthPageProps {
   boxes: CultureBox[];
-  measurements: Measurement[];
   selectedBoxId: string;
   onBoxChange: (id: string) => void;
   onBoxAdd: (box: Omit<CultureBox, 'id'>) => void;
@@ -20,19 +21,8 @@ function dateOnly(value: string) {
   return value.slice(0, 10);
 }
 
-function daysBetween(start: string, end: string) {
-  const startTime = new Date(`${start}T00:00:00.000Z`).getTime();
-  const endTime = new Date(`${end}T00:00:00.000Z`).getTime();
-  return Math.max(1, Math.round((endTime - startTime) / 86400000));
-}
-
-function round(value: number, digits = 2) {
-  return Number(value.toFixed(digits));
-}
-
 export function GrowthPage({
   boxes,
-  measurements,
   selectedBoxId,
   onBoxChange,
   onBoxAdd,
@@ -43,48 +33,33 @@ export function GrowthPage({
   const [startedAt, setStartedAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [memo, setMemo] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<CultureBox | null>(null);
+  const [growth, setGrowth] = useState<GrowthResult | null>(null);
+  const [measurements, setMeasurements] = useState<Measurement[]>([]);
 
-  const boxMeasurements = measurements
-    .filter((item) => item.boxId === box.id)
-    .sort((a, b) => new Date(a.measuredAt).getTime() - new Date(b.measuredAt).getTime());
+  useEffect(() => {
+    if (!box?.id) return;
+    setGrowth(null);
+    setMeasurements([]);
+    Promise.all([
+      api.getGrowth(box.id).catch(() => null),
+      api.listMeasurements(box.id).catch(() => []),
+    ]).then(([g, m]) => {
+      setGrowth(g);
+      setMeasurements(m as Measurement[]);
+    });
+  }, [box?.id]);
 
-  const densityMeasurements = boxMeasurements.filter(
-    (item) => item.type === 'density' && typeof item.densityPerCm2 === 'number',
-  );
-  const vitalityMeasurements = boxMeasurements.filter(
-    (item) => item.type === 'vitality' && typeof item.vitalityScore === 'number',
-  );
-
-  const firstDensity = densityMeasurements[0];
-  const latestDensityMeasurement = densityMeasurements[densityMeasurements.length - 1];
-  const firstDensityValue = firstDensity?.densityPerCm2 ?? 0;
-  const latestDensity = latestDensityMeasurement?.densityPerCm2 ?? 0;
-  const startDate = firstDensity ? dateOnly(firstDensity.measuredAt) : box.startedAt;
-  const endDate = latestDensityMeasurement ? dateOnly(latestDensityMeasurement.measuredAt) : startDate;
-  const days = daysBetween(startDate, endDate);
-  const hasDensityBaseline = densityMeasurements.length > 0;
-  const densityChange = latestDensity - firstDensityValue;
-  const densityChangeRate = firstDensityValue > 0 ? round((densityChange / firstDensityValue) * 100, 1) : 0;
-  const densityGrowthPerDay = hasDensityBaseline ? round(densityChange / days, 3) : 0;
-  const logDensityGrowth = firstDensityValue > 0 && latestDensity > 0
-    ? round((Math.log(latestDensity) - Math.log(firstDensityValue)) / days, 4)
-    : 0;
-  const latestVitality = vitalityMeasurements[vitalityMeasurements.length - 1]?.vitalityScore ?? 0;
-  const densityTrend = densityMeasurements.map((item) => item.densityPerCm2 ?? 0);
-  const vitalityTrend = vitalityMeasurements.map((item) => item.vitalityScore ?? 0);
-  const growthLabel = densityChangeRate > 20 ? '증식 활발' : densityChangeRate > 0 ? '증식 진행' : '증식 정체';
-  const growthBadge = densityChangeRate > 20 ? 'high' : densityChangeRate > 0 ? 'mid' : 'low';
+  const densityTrend = growth?.densityTrend.map((d) => d.densityPerCm2) ?? [];
+  const vitalityTrend = growth?.vitalityTrend.map((v) => v.score) ?? [];
+  const growthLabel = growth?.growthLabel ?? '유지 관찰';
+  const growthBadge =
+    growthLabel === '증식 활발' ? 'high' : growthLabel === '감소 추세' ? 'low' : 'mid';
 
   const submitBox = (event: FormEvent) => {
     event.preventDefault();
     const trimmedName = name.trim();
     if (!trimmedName) return;
-
-    onBoxAdd({
-      name: trimmedName,
-      startedAt,
-      memo: memo.trim() || undefined,
-    });
+    onBoxAdd({ name: trimmedName, startedAt, memo: memo.trim() || undefined });
     setName('');
     setStartedAt(new Date().toISOString().slice(0, 10));
     setMemo('');
@@ -101,7 +76,7 @@ export function GrowthPage({
       </div>
 
       <div className="grid grid-2 growth-admin">
-        <BoxSelector boxes={boxes} value={box.id} onChange={onBoxChange} />
+        <BoxSelector boxes={boxes} value={box?.id ?? ''} onChange={onBoxChange} />
         <form className="card growth-box-form" onSubmit={submitBox}>
           <div className="card-head">
             <div className="card-title"><Icon name="box" />사육박스 관리</div>
@@ -127,7 +102,7 @@ export function GrowthPage({
               className="btn btn-ghost"
               type="button"
               disabled={boxes.length <= 1}
-              onClick={() => setDeleteTarget(box)}
+              onClick={() => setDeleteTarget(box ?? null)}
             >
               <Icon name="x" />선택 박스 삭제
             </button>
@@ -138,22 +113,25 @@ export function GrowthPage({
       <div className="grid grid-4">
         <div className="stat">
           <div className="stat-label">현재 밀도량</div>
-          <div className="stat-value tnum">{hasDensityBaseline ? round(latestDensity, 1) : '-'}<small>마리/cm2</small></div>
-          <div className="stat-sub">{hasDensityBaseline ? endDate : '밀도 측정 필요'}</div>
+          <div className="stat-value tnum">
+            {growth && growth.currentDensityPerCm2 > 0 ? growth.currentDensityPerCm2.toFixed(1) : '-'}
+            <small>마리/cm2</small>
+          </div>
+          <div className="stat-sub">{growth?.to ?? '밀도 측정 필요'}</div>
         </div>
         <div className="stat">
           <div className="stat-label">밀도 변화율</div>
-          <div className="stat-value tnum">{hasDensityBaseline ? densityChangeRate : 0}<small>%</small></div>
-          <div className="stat-sub">{hasDensityBaseline ? `${startDate} 대비` : '밀도 기반'}</div>
+          <div className="stat-value tnum">{growth?.densityChangeRatePercent.toFixed(1) ?? 0}<small>%</small></div>
+          <div className="stat-sub">{growth ? `${growth.from} 대비` : '밀도 기반'}</div>
         </div>
         <div className="stat">
           <div className="stat-label">일 밀도 증가량</div>
-          <div className="stat-value tnum">{densityGrowthPerDay}<small>/일</small></div>
-          <div className="stat-sub">{hasDensityBaseline ? `${days}일 기준` : '밀도 측정 필요'}</div>
+          <div className="stat-value tnum">{growth?.densityGrowthPerDay.toFixed(3) ?? 0}<small>/일</small></div>
+          <div className="stat-sub">{growth ? `${growth.days}일 기준` : '밀도 측정 필요'}</div>
         </div>
         <div className="stat">
           <div className="stat-label">증식률 결과</div>
-          <div className="stat-value tnum">{logDensityGrowth}</div>
+          <div className="stat-value tnum">{growth?.logDensityGrowthPerDay.toFixed(4) ?? 0}</div>
           <div className="stat-sub">로그 밀도 성장률</div>
         </div>
       </div>
@@ -162,17 +140,21 @@ export function GrowthPage({
         <div className="card">
           <div className="card-head">
             <div className="card-title"><Icon name="grid" />밀도 추이</div>
-            <span className="card-sub">latest {round(latestDensity, 1)} / cm2</span>
+            <span className="card-sub">latest {growth?.currentDensityPerCm2.toFixed(1) ?? '-'} / cm2</span>
           </div>
-          {densityTrend.length > 1 ? <LineChart data={densityTrend} xlabel="측정" /> : <div className="growth-empty">밀도 측정 데이터가 더 필요합니다.</div>}
+          {densityTrend.length > 1
+            ? <LineChart data={densityTrend} xlabel="측정" />
+            : <div className="growth-empty">밀도 측정 데이터가 더 필요합니다.</div>}
         </div>
 
         <div className="card">
           <div className="card-head">
             <div className="card-title"><Icon name="pulse" />활력도 추이</div>
-            <span className="card-sub">latest {latestVitality}점</span>
+            <span className="card-sub">latest {growth?.vitalityTrend[growth.vitalityTrend.length - 1]?.score ?? '-'}점</span>
           </div>
-          {vitalityTrend.length > 1 ? <LineChart data={vitalityTrend} xlabel="측정" /> : <div className="growth-empty">활력도 측정 데이터가 더 필요합니다.</div>}
+          {vitalityTrend.length > 1
+            ? <LineChart data={vitalityTrend} xlabel="측정" />
+            : <div className="growth-empty">활력도 측정 데이터가 더 필요합니다.</div>}
         </div>
 
         <div className="card growth-result-card">
@@ -184,10 +166,10 @@ export function GrowthPage({
             <span>density = count / measured_area_cm2</span>
             <span>density_change_rate = (current_density - first_density) / first_density * 100</span>
           </div>
-          <div className="metric-row"><span className="mr-k">기준 기간</span><span className="mr-v">{startDate} - {endDate}</span></div>
-          <div className="metric-row"><span className="mr-k">밀도 변화량</span><span className="mr-v mono">{round(densityChange, 2)} / cm2</span></div>
-          <div className="metric-row"><span className="mr-k">밀도 변화율</span><span className="mr-v mono">{densityChangeRate}%</span></div>
-          <div className="metric-row"><span className="mr-k">로그 성장률</span><span className="mr-v mono">{logDensityGrowth}</span></div>
+          <div className="metric-row"><span className="mr-k">기준 기간</span><span className="mr-v">{growth ? `${growth.from} - ${growth.to}` : '-'}</span></div>
+          <div className="metric-row"><span className="mr-k">밀도 변화량</span><span className="mr-v mono">{growth?.densityChangePerCm2.toFixed(2) ?? '-'} / cm2</span></div>
+          <div className="metric-row"><span className="mr-k">밀도 변화율</span><span className="mr-v mono">{growth?.densityChangeRatePercent.toFixed(1) ?? '-'}%</span></div>
+          <div className="metric-row"><span className="mr-k">로그 성장률</span><span className="mr-v mono">{growth?.logDensityGrowthPerDay.toFixed(4) ?? '-'}</span></div>
         </div>
       </div>
 
@@ -203,14 +185,20 @@ export function GrowthPage({
             <span>밀도</span>
             <span>활력도</span>
           </div>
-          {boxMeasurements.map((item) => (
-            <div className="growth-row" key={item.id}>
-              <span>{dateOnly(item.measuredAt)}</span>
-              <span>{item.type}</span>
-              <span className="mono">{item.densityPerCm2 ?? '-'}</span>
-              <span className="mono">{item.vitalityScore ?? '-'}</span>
-            </div>
-          ))}
+          {measurements.length === 0 && (
+            <div className="growth-empty" style={{ padding: '20px 0' }}>측정 이력이 없습니다.</div>
+          )}
+          {measurements
+            .slice()
+            .sort((a, b) => new Date(a.measuredAt).getTime() - new Date(b.measuredAt).getTime())
+            .map((item) => (
+              <div className="growth-row" key={item.id}>
+                <span>{dateOnly(item.measuredAt)}</span>
+                <span>{item.type}</span>
+                <span className="mono">{item.densityPerCm2 ?? '-'}</span>
+                <span className="mono">{item.vitalityScore ?? '-'}</span>
+              </div>
+            ))}
         </div>
       </div>
 
@@ -221,7 +209,7 @@ export function GrowthPage({
               <div className="card-title" id="delete-box-title"><Icon name="trash" />사육박스 삭제 확인</div>
             </div>
             <p className="confirm-copy">
-              <b>{deleteTarget.name}</b> 데이터를 삭제하시겠습니까? 바로 DB에서 제거하지 않고 trash.db 휴지통으로 이동합니다.
+              <b>{deleteTarget.name}</b> 데이터를 삭제하시겠습니까? 휴지통으로 이동합니다.
             </p>
             <div className="confirm-actions">
               <button className="btn btn-ghost" onClick={() => setDeleteTarget(null)}>취소</button>

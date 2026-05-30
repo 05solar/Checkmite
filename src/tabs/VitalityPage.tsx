@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import './VitalityPage.css';
 import { Icon } from '../components/Icons';
 import { UploadZone } from '../components/UploadZone';
@@ -6,10 +6,11 @@ import { FileChip } from '../components/FileChip';
 import { Processing } from '../components/Processing';
 import { Badge, gradeOf } from '../components/Badge';
 import { Gauge } from '../components/Gauge';
-import { Heatmap } from '../components/Heatmap';
 import { LineChart } from '../components/LineChart';
 import { BoxSelector } from '../components/BoxSelector';
-import type { CultureBox, Measurement, PhaseId } from '../types';
+import { api } from '../api/client';
+import type { VitalityResult } from '../api/client';
+import type { CultureBox, PhaseId } from '../types';
 
 const VIT_STEPS = [
   '영상 디코딩 및 프레임 분할…',
@@ -19,37 +20,25 @@ const VIT_STEPS = [
   '활력도 점수 산출…',
 ];
 
-const VIT_SCORE = 78;
-const VIT_TREND = [62, 58, 65, 71, 68, 74, 79, 83, 80, 77, 82, 85, 81, 78, 76, 80, 84, 79];
+function fileMeta(file: File) {
+  const mb = (file.size / 1024 / 1024).toFixed(1);
+  return `${mb} MB`;
+}
 
-const HEAT = (() => {
-  const cells: number[] = [];
-  for (let r = 0; r < 8; r++) {
-    for (let c = 0; c < 14; c++) {
-      const cx = 9, cy = 3.5;
-      const d = Math.sqrt((c - cx) ** 2 + (r - cy) ** 2);
-      let v = Math.max(0, 1 - d / 7) * (0.6 + 0.4 * Math.sin(c * 0.9 + r));
-      const cx2 = 3, cy2 = 5;
-      const d2 = Math.sqrt((c - cx2) ** 2 + (r - cy2) ** 2);
-      v = Math.max(v, Math.max(0, 1 - d2 / 4) * 0.7);
-      cells.push(Math.min(1, Math.max(0, v + (Math.random() - 0.5) * 0.12)));
-    }
-  }
-  return cells;
-})();
-
-interface VitalityResultProps {
+interface VitalityResultViewProps {
+  data: VitalityResult['vitality'];
   onReset: () => void;
 }
 
-function VitalityResult({ onReset }: VitalityResultProps) {
-  const level = VIT_SCORE < 40 ? '낮음' : VIT_SCORE < 70 ? '보통' : '높음';
+function VitalityResultView({ data, onReset }: VitalityResultViewProps) {
+  const level = data.score < 40 ? '낮음' : data.score < 70 ? '보통' : '높음';
+  const activeRatioPct = data.activeRatio != null ? Math.round(data.activeRatio * 100) : null;
 
   return (
     <div className="fade-in grid grid-2">
       <div className="grid" style={{ alignContent: 'start' }}>
         <div className="card vit-gauge-card">
-          <Gauge value={VIT_SCORE} />
+          <Gauge value={data.score} />
           <div className="grade-row" style={{ marginTop: 18 }}>
             <Badge kind={gradeOf(level)} dot>활력도 {level}</Badge>
           </div>
@@ -57,43 +46,37 @@ function VitalityResult({ onReset }: VitalityResultProps) {
 
         <div className="card">
           <div className="card-head"><div className="card-title"><Icon name="spark" />활력도 세부 지표</div></div>
-          <div className="metric-row"><span className="mr-k">평균 이동 속도</span><span className="mr-v mono">2.4 mm/s</span></div>
-          <div className="metric-row"><span className="mr-k">활동 개체 비율</span><span className="mr-v mono">86%</span></div>
-          <div className="metric-row"><span className="mr-k">정지 개체 비율</span><span className="mr-v mono">14%</span></div>
-          <div className="metric-row"><span className="mr-k">평균 이동 거리</span><span className="mr-v mono">41.7 mm</span></div>
-          <div className="metric-row"><span className="mr-k">방향 전환 빈도</span><span className="mr-v mono">초당 1.8회</span></div>
+          {activeRatioPct != null && (
+            <div className="metric-row"><span className="mr-k">활동 개체 비율</span><span className="mr-v mono">{activeRatioPct}%</span></div>
+          )}
+          {activeRatioPct != null && (
+            <div className="metric-row"><span className="mr-k">정지 개체 비율</span><span className="mr-v mono">{100 - activeRatioPct}%</span></div>
+          )}
+          <div className="metric-row"><span className="mr-k">활력도 점수</span><span className="mr-v mono">{data.score}점</span></div>
         </div>
       </div>
 
       <div className="grid" style={{ alignContent: 'start' }}>
-        <div className="card">
-          <div className="card-head">
-            <div className="card-title"><Icon name="grid" />움직임 히트맵</div>
-            <span className="card-sub">motion heatmap</span>
+        {data.trend.length > 1 && (
+          <div className="card">
+            <div className="card-head">
+              <div className="card-title"><Icon name="pulse" />시간별 활력도 추이</div>
+              <span className="card-sub">초 단위</span>
+            </div>
+            <LineChart data={data.trend} xlabel="구간" />
           </div>
-          <Heatmap data={HEAT} />
-        </div>
-
-        <div className="card">
-          <div className="card-head">
-            <div className="card-title"><Icon name="pulse" />시간별 활력도 추이</div>
-            <span className="card-sub">초 단위</span>
-          </div>
-          <LineChart data={VIT_TREND} xlabel="구간" />
-        </div>
+        )}
 
         <div className="card">
           <div className="card-head">
             <div className="card-title"><Icon name="cpu" />측정 정보</div>
             <Badge kind="accent" dot>완료</Badge>
           </div>
-          <div className="metric-row"><span className="mr-k">분석 프레임</span><span className="mr-v mono">450 / 450</span></div>
-          <div className="metric-row"><span className="mr-k">처리 시간</span><span className="mr-v mono">11.6초</span></div>
+          <div className="metric-row"><span className="mr-k">최종 점수</span><span className="mr-v mono">{data.score}점</span></div>
         </div>
 
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="btn btn-ghost btn-block" onClick={onReset}><Icon name="upload" />새 영상 분석</button>
-          <button className="btn btn-ghost"><Icon name="download" />리포트 저장</button>
         </div>
       </div>
     </div>
@@ -104,24 +87,46 @@ interface VitalityPageProps {
   boxes: CultureBox[];
   selectedBoxId: string;
   onBoxChange: (id: string) => void;
-  onMeasurementAdd: (measurement: Omit<Measurement, 'id' | 'measuredAt'>) => void;
 }
 
-export function VitalityPage({ boxes, selectedBoxId, onBoxChange, onMeasurementAdd }: VitalityPageProps) {
+export function VitalityPage({ boxes, selectedBoxId, onBoxChange }: VitalityPageProps) {
   const [phase, setPhase] = useState<PhaseId>('idle');
+  const [file, setFile] = useState<File | null>(null);
+  const [result, setResult] = useState<VitalityResult['vitality'] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const apiPromise = useRef<Promise<VitalityResult | null> | null>(null);
 
-  const finishAnalysis = () => {
-    onMeasurementAdd({
-      boxId: selectedBoxId,
-      type: 'vitality',
-      vitalityScore: VIT_SCORE,
-      activeRatio: 0.86,
-      resultJson: {
-        score: VIT_SCORE,
-        trend: VIT_TREND,
-      },
+  const handlePick = (picked: File) => {
+    setFile(picked);
+    setError(null);
+    setPhase('file');
+  };
+
+  const startAnalysis = () => {
+    if (!file || !selectedBoxId) return;
+    setError(null);
+    apiPromise.current = api.analyzeVitality(selectedBoxId, file).catch((e: Error) => {
+      setError(e.message);
+      setPhase('file');
+      return null;
     });
-    setPhase('result');
+    setPhase('proc');
+  };
+
+  const onAnimDone = () => {
+    apiPromise.current?.then((r) => {
+      if (!r) return;
+      setResult(r.vitality);
+      setPhase('result');
+    });
+  };
+
+  const reset = () => {
+    setPhase('idle');
+    setFile(null);
+    setResult(null);
+    setError(null);
+    apiPromise.current = null;
   };
 
   return (
@@ -129,16 +134,22 @@ export function VitalityPage({ boxes, selectedBoxId, onBoxChange, onMeasurementA
       <div className="page-head">
         <div className="page-eyebrow"><span className="pe-dot" />활력도 측정 · VITALITY</div>
         <h1 className="page-title">영상 기반 활력도 측정</h1>
-        <p className="page-desc">영상을 업로드하면 서버가 개체들의 움직임을 분석해 0~100점의 활력도 점수와 움직임 히트맵을 산출합니다.</p>
+        <p className="page-desc">영상을 업로드하면 서버가 개체들의 움직임을 분석해 0~100점의 활력도 점수와 추이를 산출합니다.</p>
       </div>
 
       <div style={{ marginBottom: 18 }}>
         <BoxSelector boxes={boxes} value={selectedBoxId} onChange={onBoxChange} />
       </div>
 
+      {error && (
+        <div className="card" style={{ marginBottom: 16, borderColor: 'var(--danger, #e55)', color: 'var(--danger, #e55)', padding: '12px 16px', fontSize: 13.5 }}>
+          <Icon name="info" /> {error}
+        </div>
+      )}
+
       {phase === 'idle' && (
         <div className="grid grid-2">
-          <UploadZone accept="MP4 · MOV · AVI · 최대 500MB" kind="video" onPick={() => setPhase('file')} />
+          <UploadZone accept="MP4 · MOV · AVI · 최대 500MB" kind="video" onPick={handlePick} />
           <div className="card">
             <div className="card-head"><div className="card-title"><Icon name="info" />활력도란?</div></div>
             <p style={{ margin: '0 0 4px', fontSize: 13.5, color: 'var(--text-2)', lineHeight: 1.6 }}>
@@ -148,17 +159,17 @@ export function VitalityPage({ boxes, selectedBoxId, onBoxChange, onMeasurementA
         </div>
       )}
 
-      {phase === 'file' && (
+      {phase === 'file' && file && (
         <div className="grid" style={{ maxWidth: 560 }}>
-          <FileChip name="mite_activity_clip.mp4" meta="1920 × 1080 · 15초 · 450 프레임 · 36 MB" kind="video" onRemove={() => setPhase('idle')} />
-          <button className="btn btn-primary btn-lg btn-block" onClick={() => setPhase('proc')}>
+          <FileChip name={file.name} meta={fileMeta(file)} kind="video" onRemove={() => setPhase('idle')} />
+          <button className="btn btn-primary btn-lg btn-block" onClick={startAnalysis}>
             <Icon name="pulse" />활력도 측정
           </button>
         </div>
       )}
 
-      {phase === 'proc' && <Processing steps={VIT_STEPS} onDone={finishAnalysis} duration={3000} />}
-      {phase === 'result' && <VitalityResult onReset={() => setPhase('idle')} />}
+      {phase === 'proc' && <Processing steps={VIT_STEPS} onDone={onAnimDone} duration={3000} />}
+      {phase === 'result' && result && <VitalityResultView data={result} onReset={reset} />}
     </div>
   );
 }
