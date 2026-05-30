@@ -56,11 +56,12 @@ const inferDetection = async (payload) => {
 
 const inferJson = async (type, payload) => {
   try {
+    const timeoutMs = type === 'vitality' ? 300_000 : 30_000;
     const response = await fetch(`${env.modelRuntimeUrl}/infer/${type}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
 
     if (!response.ok) throw new Error(`Model runtime responded with ${response.status}`);

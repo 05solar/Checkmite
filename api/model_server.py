@@ -8,7 +8,11 @@ from typing import Any
 import cv2
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from ultralytics import YOLO
+
+from .tracking_service import TrackingService
+from .vitality_service import VitalityService
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -19,6 +23,12 @@ DEFAULT_IMGSZ = int(os.getenv("CHECKMITE_IMGSZ", "640"))
 DEFAULT_TILE_SIZE = int(os.getenv("CHECKMITE_TILE_SIZE", "640"))
 DEFAULT_TILE_OVERLAP = float(os.getenv("CHECKMITE_TILE_OVERLAP", "0.5"))
 DEFAULT_NMS_IOU = float(os.getenv("CHECKMITE_NMS_IOU", "0.3"))
+DEFAULT_VITALITY_TARGET_CLASS = os.getenv("CHECKMITE_VITALITY_TARGET_CLASS", "predator")
+DEFAULT_VITALITY_PX_PER_MM = float(os.getenv("CHECKMITE_VITALITY_PX_PER_MM", "1500"))
+DEFAULT_VITALITY_REFERENCE_SPEED_MM_SEC = float(os.getenv("CHECKMITE_VITALITY_REFERENCE_SPEED_MM_SEC", "0.15"))
+DEFAULT_VITALITY_MIN_TRACK_FRAMES = int(os.getenv("CHECKMITE_VITALITY_MIN_TRACK_FRAMES", "3"))
+DEFAULT_VITALITY_MOTION_THRESHOLD_PX = float(os.getenv("CHECKMITE_VITALITY_MOTION_THRESHOLD_PX", "2.0"))
+DEFAULT_VITALITY_MAX_FRAMES = int(os.getenv("CHECKMITE_VITALITY_MAX_FRAMES", "0"))
 CLASS_NAMES = {
     0: "predator",
     1: "prey",
@@ -33,6 +43,13 @@ app.add_middleware(
 )
 
 _model: YOLO | None = None
+
+
+class VitalityRequest(BaseModel):
+    filePath: str
+    mimeType: str | None = None
+    targetClass: str | None = None
+    maxFrames: int | None = None
 
 
 def restore_model_from_parts() -> None:
@@ -105,6 +122,101 @@ def detection_to_dict(
             "width": x2 - x1,
             "height": y2 - y1,
         },
+    }
+
+
+def box_to_tracking_detection(box: Any) -> dict[str, Any]:
+    cls_id = int(box.cls[0])
+    conf = float(box.conf[0])
+    x1, y1, x2, y2 = [float(v) for v in box.xyxy[0]]
+    return {
+        "bbox": [x1, y1, x2, y2],
+        "center": [(x1 + x2) / 2.0, (y1 + y2) / 2.0],
+        "score": conf,
+        "class_name": CLASS_NAMES.get(cls_id, str(cls_id)),
+    }
+
+
+def predict_frame_detections(
+    *,
+    model: YOLO,
+    frame: Any,
+    conf: float,
+    imgsz: int,
+) -> list[dict[str, Any]]:
+    result = model.predict(frame, conf=conf, imgsz=imgsz, verbose=False)[0]
+    if result.boxes is None:
+        return []
+    return [box_to_tracking_detection(box) for box in result.boxes]
+
+
+def analyze_vitality_video(
+    *,
+    model: YOLO,
+    video_path: Path,
+    conf: float,
+    imgsz: int,
+    target_class: str,
+    max_frames: int,
+) -> dict[str, Any]:
+    capture = cv2.VideoCapture(str(video_path))
+    if not capture.isOpened():
+        raise HTTPException(status_code=400, detail="Could not open video")
+
+    fps = capture.get(cv2.CAP_PROP_FPS) or 10.0
+    tracker = TrackingService(motion_threshold_px=DEFAULT_VITALITY_MOTION_THRESHOLD_PX)
+    vitality = VitalityService(
+        min_track_frames=DEFAULT_VITALITY_MIN_TRACK_FRAMES,
+        motion_threshold_px=DEFAULT_VITALITY_MOTION_THRESHOLD_PX,
+        px_per_mm=DEFAULT_VITALITY_PX_PER_MM,
+        reference_speed_mm_sec=DEFAULT_VITALITY_REFERENCE_SPEED_MM_SEC,
+        target_class_name=target_class,
+    )
+
+    frame_idx = 0
+    try:
+        while True:
+            ok, frame = capture.read()
+            if not ok:
+                break
+
+            detections = predict_frame_detections(
+                model=model,
+                frame=frame,
+                conf=conf,
+                imgsz=imgsz,
+            )
+            detections = [
+                detection for detection in detections
+                if detection["class_name"] == target_class
+            ]
+            tracker.update(detections, frame_idx)
+            frame_idx += 1
+
+            if max_frames and frame_idx >= max_frames:
+                break
+    finally:
+        capture.release()
+
+    summary_rows, aggregate = vitality.summarize(tracker.tracks, frame_idx, fps)
+    return {
+        "vitalityScore": aggregate["vitality_score"],
+        "score": aggregate["vitality_score"],
+        "activeRatio": aggregate["moving_ratio"],
+        "averageSpeedMmPerSec": aggregate["mean_speed_mm_sec"],
+        "activityIndex": aggregate["activity_index"],
+        "speedScore": aggregate["speed_score"],
+        "observationStability": aggregate["observation_stability"],
+        "estimatedLiveRatio": aggregate["estimated_live_ratio"],
+        "confirmedTracks": aggregate["confirmed_tracks"],
+        "movingTracks": aggregate["moving_tracks"],
+        "targetClass": aggregate["target_class_name"],
+        "frameCount": aggregate["frame_count"],
+        "fps": aggregate["fps"],
+        "observedSeconds": aggregate["observed_seconds"],
+        "trend": [aggregate["vitality_score"]],
+        "tracks": summary_rows,
+        "summary": aggregate,
     }
 
 
@@ -296,3 +408,20 @@ async def predict_image(
         }
     finally:
         tmp_path.unlink(missing_ok=True)
+
+
+@app.post("/infer/vitality")
+async def infer_vitality(payload: VitalityRequest) -> dict[str, Any]:
+    video_path = Path(payload.filePath)
+    if not video_path.exists():
+        raise HTTPException(status_code=400, detail=f"Video file not found: {video_path}")
+
+    model = get_model()
+    return analyze_vitality_video(
+        model=model,
+        video_path=video_path,
+        conf=DEFAULT_CONF,
+        imgsz=DEFAULT_IMGSZ,
+        target_class=payload.targetClass or DEFAULT_VITALITY_TARGET_CLASS,
+        max_frames=payload.maxFrames or DEFAULT_VITALITY_MAX_FRAMES,
+    )
