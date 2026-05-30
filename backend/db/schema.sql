@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS measurements (
   measured_at TIMESTAMPTZ NOT NULL,
   count_value INTEGER,
   density_per_cm2 NUMERIC(10, 3),
+  density_per_liter NUMERIC(14, 3),
   vitality_score NUMERIC(6, 2),
   active_ratio NUMERIC(6, 4),
   result_summary JSONB,
@@ -48,10 +49,17 @@ CREATE TABLE IF NOT EXISTS measurements (
 CREATE TABLE IF NOT EXISTS density_results (
   id UUID PRIMARY KEY,
   measurement_id UUID NOT NULL REFERENCES measurements(id) ON DELETE CASCADE,
-  measured_area_cm2 NUMERIC(10, 3) NOT NULL,
+  measured_area_cm2 NUMERIC(10, 3),
   peak_count INTEGER,
   average_count NUMERIC(10, 3),
-  density_per_cm2 NUMERIC(10, 3) NOT NULL,
+  density_per_cm2 NUMERIC(10, 3),
+  best_frame_count INTEGER,
+  estimated_count_per_ml INTEGER,
+  density_per_liter NUMERIC(14, 3),
+  count_multiplier NUMERIC(10, 3),
+  video_duration_seconds NUMERIC(10, 3),
+  selected_frame_index INTEGER,
+  selected_frame_quality JSONB,
   density_grade TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -60,7 +68,8 @@ CREATE TABLE IF NOT EXISTS density_frame_counts (
   id UUID PRIMARY KEY,
   measurement_id UUID NOT NULL REFERENCES measurements(id) ON DELETE CASCADE,
   frame_index INTEGER NOT NULL,
-  count_value INTEGER NOT NULL
+  count_value INTEGER NOT NULL,
+  quality JSONB
 );
 
 CREATE TABLE IF NOT EXISTS vitality_results (
@@ -121,3 +130,15 @@ CREATE INDEX IF NOT EXISTS idx_density_results_measurement ON density_results(me
 CREATE INDEX IF NOT EXISTS idx_vitality_results_measurement ON vitality_results(measurement_id);
 CREATE INDEX IF NOT EXISTS idx_analysis_jobs_status ON analysis_jobs(status);
 CREATE INDEX IF NOT EXISTS idx_trash_events_entity ON trash_events(entity_type, entity_id);
+
+ALTER TABLE measurements ADD COLUMN IF NOT EXISTS density_per_liter NUMERIC(14, 3);
+ALTER TABLE density_results ALTER COLUMN measured_area_cm2 DROP NOT NULL;
+ALTER TABLE density_results ALTER COLUMN density_per_cm2 DROP NOT NULL;
+ALTER TABLE density_results ADD COLUMN IF NOT EXISTS best_frame_count INTEGER;
+ALTER TABLE density_results ADD COLUMN IF NOT EXISTS estimated_count_per_ml INTEGER;
+ALTER TABLE density_results ADD COLUMN IF NOT EXISTS density_per_liter NUMERIC(14, 3);
+ALTER TABLE density_results ADD COLUMN IF NOT EXISTS count_multiplier NUMERIC(10, 3);
+ALTER TABLE density_results ADD COLUMN IF NOT EXISTS video_duration_seconds NUMERIC(10, 3);
+ALTER TABLE density_results ADD COLUMN IF NOT EXISTS selected_frame_index INTEGER;
+ALTER TABLE density_results ADD COLUMN IF NOT EXISTS selected_frame_quality JSONB;
+ALTER TABLE density_frame_counts ADD COLUMN IF NOT EXISTS quality JSONB;

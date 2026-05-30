@@ -27,6 +27,8 @@ export const createApp = () => {
     res.json({ ok: true, service: 'checkmite-backend' });
   });
 
+  app.use('/uploads', express.static(env.uploadDir));
+
   app.use('/api/culture-boxes', cultureBoxRoutes);
   app.use('/api/analysis', analysisRoutes);
   app.use('/api/measurements', measurementRoutes);

@@ -1,4 +1,4 @@
-export type TabId = 'detection' | 'density' | 'vitality' | 'growth' | 'trash';
+export type TabId = 'detection' | 'density' | 'growth' | 'trash';
 export type Theme = 'light' | 'dark';
 export type PhaseId = 'idle' | 'file' | 'proc' | 'result';
 
@@ -18,6 +18,7 @@ export interface Measurement {
   measuredAt: string;
   countValue?: number;
   densityPerCm2?: number;
+  densityPerLiter?: number;
   vitalityScore?: number;
   activeRatio?: number;
   resultJson?: Record<string, unknown>;

@@ -19,6 +19,7 @@ export const mapMeasurement = (row) => ({
   measuredAt: toIso(row.measured_at),
   countValue: toNumber(row.count_value),
   densityPerCm2: toNumber(row.density_per_cm2),
+  densityPerLiter: toNumber(row.density_per_liter),
   vitalityScore: toNumber(row.vitality_score),
   activeRatio: toNumber(row.active_ratio),
   resultJson: row.result_summary || undefined,

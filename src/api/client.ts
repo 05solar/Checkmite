@@ -25,16 +25,97 @@ export interface DetectionResult {
 
 export interface DensityResult {
   measurementId: string;
+  vitalityMeasurementId?: string;
   boxId: string;
   type: 'density';
   measuredAt: string;
   density: {
-    currentDensityPerCm2: number;
-    measuredAreaCm2: number;
+    densityPerLiter: number;
+    currentDensityPerLiter: number;
+    estimatedCountPerMl: number;
+    bestFrameCount: number;
     peakCount: number;
-    averageCount: number;
+    averageFrameCount?: number;
+    sampleCount?: number;
+    sampledFrames?: number;
+    videoDurationSeconds?: number;
+    selectedFrameIndex?: number;
+    selectedFrameTimestampSeconds?: number;
+    selectedFrameQuality?: {
+      sharpness: number;
+      brightness: number;
+      quality_score: number;
+      passes_quality: boolean;
+    };
+    densityGrade?: string;
+    warnings?: string[];
+  };
+  vitality?: {
+    score: number;
+    activeRatio?: number | null;
+    averageSpeedMmPerSec?: number | null;
+    trend: number[];
+    sampleCount?: number;
+    confirmedTracks?: number;
+    movingTracks?: number;
+    trackingVideoUrl?: string | null;
+    representativeTrack?: {
+      sampleIndex: number;
+      originalName: string;
+      trackId: number;
+      framesSeen?: number;
+      firstFrameIndex?: number;
+      lastFrameIndex?: number;
+      totalDistancePx?: number;
+      totalDistanceMm?: number;
+      meanSpeedPxPerSec?: number;
+      meanSpeedMmPerSec?: number;
+      movingRatio?: number;
+      vitalityScore?: number;
+      visibilityRatio?: number;
+      averageConfidence?: number;
+      isLiveMotion: boolean;
+    } | null;
   };
   measurement: Partial<Measurement>;
+  vitalityMeasurement?: Partial<Measurement>;
+  samples?: Array<{
+    sampleIndex: number;
+    originalName: string;
+    bestFrameCount?: number;
+    estimatedCountPerMl?: number;
+    densityPerLiter?: number;
+    averageFrameCount?: number;
+    selectedFrameIndex?: number;
+    vitalityScore?: number;
+    activeRatio?: number | null;
+    averageSpeedMmPerSec?: number | null;
+    confirmedTracks?: number;
+    movingTracks?: number;
+  }>;
+}
+
+export interface DensityProgress {
+  id: string;
+  type: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  percent: number;
+  message: string;
+  currentSample: number;
+  totalSamples: number;
+  samples: Array<{
+    sampleIndex: number;
+    status: string;
+    originalName?: string;
+    bestFrameCount?: number;
+    estimatedCountPerMl?: number;
+    vitalityScore?: number;
+    activeRatio?: number | null;
+    confirmedTracks?: number;
+    movingTracks?: number;
+  }>;
+  result: DensityResult | null;
+  error: string | null;
 }
 
 export interface VitalityResult {
@@ -55,14 +136,29 @@ export interface GrowthResult {
   from: string;
   to: string;
   days: number;
-  currentDensityPerCm2: number;
-  firstDensityPerCm2: number;
-  densityChangePerCm2: number;
+  currentCount: number;
+  firstCount: number;
+  countChange: number;
+  countChangeRatePercent: number;
+  countGrowthPerDay: number;
+  logCountGrowthPerDay: number;
+  currentDensityPerLiter: number;
+  firstDensityPerLiter: number;
+  densityChangePerLiter: number;
   densityChangeRatePercent: number;
   densityGrowthPerDay: number;
   logDensityGrowthPerDay: number;
+  latestVitalityScore: number;
+  firstVitalityScore: number;
+  averageVitalityScore: number;
+  vitalityChange: number;
+  vitalityChangeRatePercent: number;
+  weightedGrowthRatePercent: number;
+  countWeight: number;
+  vitalityWeight: number;
   growthLabel: string;
-  densityTrend: Array<{ date: string; densityPerCm2: number }>;
+  countTrend: Array<{ date: string; countValue: number }>;
+  densityTrend: Array<{ date: string; densityPerLiter: number }>;
   vitalityTrend: Array<{ date: string; score: number }>;
 }
 
@@ -103,13 +199,32 @@ export const api = {
     form.append('file', file);
     return req<DetectionResult>('/analysis/detection', { method: 'POST', body: form });
   },
-  analyzeDensity: (boxId: string, file: File, measuredAreaCm2: number) => {
+  startDensityAnalysis: (boxId: string, files: File[], onUploadProgress?: (percent: number) => void) => {
     const form = new FormData();
     form.append('boxId', boxId);
-    form.append('measuredAreaCm2', String(measuredAreaCm2));
-    form.append('file', file);
-    return req<DensityResult>('/analysis/density', { method: 'POST', body: form });
+    files.forEach((file) => form.append('files', file));
+    return new Promise<DensityProgress>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${BASE}/analysis/density`);
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && onUploadProgress) {
+          onUploadProgress(Math.round((event.loaded / event.total) * 100));
+        }
+      };
+      xhr.onload = () => {
+        const body = JSON.parse(xhr.responseText || '{}');
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(body as DensityProgress);
+        } else {
+          reject(new Error((body as { message?: string }).message ?? `HTTP ${xhr.status}`));
+        }
+      };
+      xhr.onerror = () => reject(new Error('업로드 요청에 실패했습니다.'));
+      xhr.send(form);
+    });
   },
+  getDensityProgress: (jobId: string) =>
+    req<DensityProgress>(`/analysis/density/${jobId}/progress`),
   analyzeVitality: (boxId: string, file: File) => {
     const form = new FormData();
     form.append('boxId', boxId);

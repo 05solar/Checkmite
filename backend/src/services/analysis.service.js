@@ -1,9 +1,13 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { withTransaction } from '../config/database.js';
+import { env } from '../config/env.js';
 import { analysisJobRepository } from '../repositories/analysis-job.repository.js';
 import { cultureBoxRepository } from '../repositories/culture-box.repository.js';
 import { measurementRepository } from '../repositories/measurement.repository.js';
 import { uploadedFileRepository } from '../repositories/uploaded-file.repository.js';
-import { notFound } from '../utils/http-error.js';
+import { HttpError, notFound } from '../utils/http-error.js';
+import { analysisProgressService } from './analysis-progress.service.js';
 import { modelRuntimeService } from './model-runtime.service.js';
 
 const createUploadedFile = async (file, boxId, client) => {
@@ -20,26 +24,258 @@ const createUploadedFile = async (file, boxId, client) => {
   );
 };
 
+const numberOrZero = (value) => Number(value ?? 0);
+
+const toRepresentativeTrack = (sample, track) => ({
+  sampleIndex: sample.sampleIndex,
+  originalName: sample.originalName,
+  trackId: track.track_id,
+  framesSeen: track.frames_seen,
+  firstFrameIndex: track.first_frame_idx,
+  lastFrameIndex: track.last_frame_idx,
+  totalDistancePx: track.total_distance_px,
+  totalDistanceMm: track.total_distance_mm,
+  meanSpeedPxPerSec: track.mean_speed_px_sec,
+  meanSpeedMmPerSec: track.mean_speed_mm_sec,
+  movingRatio: track.moving_ratio,
+  vitalityScore: track.vitality_score,
+  visibilityRatio: track.visibility_ratio,
+  averageConfidence: track.avg_confidence,
+  isLiveMotion: Boolean(track.is_live_motion),
+});
+
+const compareRepresentativeTracks = (a, b) => {
+  const aValues = [
+    a.isLiveMotion ? 1 : 0,
+    numberOrZero(a.vitalityScore),
+    numberOrZero(a.framesSeen),
+    numberOrZero(a.totalDistancePx),
+  ];
+  const bValues = [
+    b.isLiveMotion ? 1 : 0,
+    numberOrZero(b.vitalityScore),
+    numberOrZero(b.framesSeen),
+    numberOrZero(b.totalDistancePx),
+  ];
+
+  for (let index = 0; index < aValues.length; index += 1) {
+    if (aValues[index] !== bValues[index]) return bValues[index] - aValues[index];
+  }
+  return 0;
+};
+
+const selectRepresentativeTrack = (sampleResults) => {
+  const tracks = sampleResults.flatMap((sample) =>
+    (sample.vitality.tracks || []).map((track) => toRepresentativeTrack(sample, track))
+  );
+  return tracks.sort(compareRepresentativeTracks)[0] ?? null;
+};
+
+const trackingVideoOutputFor = (file) => {
+  const baseName = path.parse(file.filename || path.basename(file.path)).name;
+  const relativePath = path.join('tracking', `${baseName}-tracking.mp4`);
+  const outputPath = path.join(env.uploadDir, relativePath);
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  return {
+    outputPath,
+    url: `/uploads/${relativePath.split(path.sep).join('/')}`,
+  };
+};
+
 export const analysisService = {
-  async runDensity(input, file) {
+  async startDensity(input, files) {
     const box = await cultureBoxRepository.findById(input.boxId);
     if (!box || box.deletedAt) throw notFound('활성 사육박스를 찾을 수 없습니다.');
 
-    const modelResult = await modelRuntimeService.inferDensity({
-      cultureBoxId: input.boxId,
-      filePath: file?.path,
-      measuredAt: input.measuredAt,
-      measuredAreaCm2: input.measuredAreaCm2,
+    const densityFiles = Array.isArray(files) ? files : [];
+    if (densityFiles.length !== 20) {
+      throw new HttpError(400, '밀도 측정은 서로 다른 1 mL 배지 영상 20개를 반드시 업로드해야 합니다.');
+    }
+
+    const progress = analysisProgressService.create({ type: 'density', totalSamples: densityFiles.length });
+    setImmediate(async () => {
+      try {
+        const result = await this.runDensity(input, densityFiles, { progressJobId: progress.id });
+        analysisProgressService.complete(progress.id, result);
+      } catch (error) {
+        analysisProgressService.fail(progress.id, error);
+      }
     });
 
-    const countValue = Number(modelResult.countValue ?? modelResult.peakCount ?? 0);
-    const measuredAreaCm2 = Number(input.measuredAreaCm2 || modelResult.measuredAreaCm2 || 12);
-    const densityPerCm2 = Number((countValue / measuredAreaCm2).toFixed(3));
+    return progress;
+  },
+
+  getDensityProgress(jobId) {
+    const progress = analysisProgressService.get(jobId);
+    if (!progress) throw notFound('분석 작업을 찾을 수 없습니다.');
+    return progress;
+  },
+
+  async runDensity(input, files, options = {}) {
+    const box = await cultureBoxRepository.findById(input.boxId);
+    if (!box || box.deletedAt) throw notFound('활성 사육박스를 찾을 수 없습니다.');
+
+    const densityFiles = Array.isArray(files) ? files : [];
+    if (densityFiles.length !== 20) {
+      throw new HttpError(400, '밀도 측정은 서로 다른 1 mL 배지 영상 20개를 반드시 업로드해야 합니다.');
+    }
+
+    const sampleResults = [];
+    const totalOps = densityFiles.length * 2;
+    let completedOps = 0;
+    const updateProgress = (sampleIndex, phase, patch = {}) => {
+      if (!options.progressJobId) return;
+      const percent = Math.min(99, Math.round((completedOps / totalOps) * 100));
+      analysisProgressService.update(options.progressJobId, {
+        status: 'processing',
+        percent,
+        currentSample: sampleIndex,
+        message: `${sampleIndex}/20 ${phase}`,
+      });
+      analysisProgressService.updateSample(options.progressJobId, sampleIndex, patch);
+    };
+
+    for (let index = 0; index < densityFiles.length; index += 1) {
+      const file = densityFiles[index];
+      const sampleIndex = index + 1;
+      updateProgress(sampleIndex, '밀도 분석 중', {
+        status: 'density',
+        originalName: file.originalname,
+      });
+      const densityResult = await modelRuntimeService.inferDensity({
+        cultureBoxId: input.boxId,
+        filePath: file?.path,
+        measuredAt: input.measuredAt,
+        mimeType: file?.mimetype,
+        sampleIndex,
+      });
+      completedOps += 1;
+      updateProgress(sampleIndex, '활력도 분석 중', {
+        status: 'vitality',
+        bestFrameCount: densityResult.bestFrameCount,
+        estimatedCountPerMl: densityResult.estimatedCountPerMl,
+      });
+      const trackingVideo = sampleIndex === 1 ? trackingVideoOutputFor(file) : null;
+      const vitalityResult = await modelRuntimeService.inferVitality({
+        cultureBoxId: input.boxId,
+        filePath: file?.path,
+        mimeType: file?.mimetype,
+        measuredAt: input.measuredAt,
+        sampleIndex,
+        renderTrackingVideo: Boolean(trackingVideo),
+        trackingVideoPath: trackingVideo?.outputPath,
+      });
+      if (trackingVideo && vitalityResult.trackingVideoPath) {
+        vitalityResult.trackingVideoUrl = trackingVideo.url;
+      }
+      completedOps += 1;
+      updateProgress(sampleIndex, '샘플 완료', {
+        status: 'completed',
+        vitalityScore: Number(vitalityResult.vitalityScore ?? vitalityResult.score ?? 0),
+        activeRatio: vitalityResult.activeRatio,
+        confirmedTracks: vitalityResult.confirmedTracks,
+        movingTracks: vitalityResult.movingTracks,
+      });
+      sampleResults.push({
+        sampleIndex,
+        originalName: file.originalname,
+        density: densityResult,
+        vitality: vitalityResult,
+      });
+    }
+
+    const estimatedCounts = sampleResults.map((result) => Number(result.density.estimatedCountPerMl ?? result.density.countValue ?? 0));
+    const bestFrameCounts = sampleResults.map((result) => Number(result.density.bestFrameCount ?? result.density.peakCount ?? 0));
+    const estimatedCountPerMl = Math.round(
+      estimatedCounts.reduce((sum, value) => sum + value, 0) / sampleResults.length
+    );
+    const bestFrameCount = Math.max(...bestFrameCounts);
+    const representativeSample = sampleResults.reduce((best, item) => {
+      const bestCount = Number(best.density.bestFrameCount ?? best.density.peakCount ?? 0);
+      const itemCount = Number(item.density.bestFrameCount ?? item.density.peakCount ?? 0);
+      return itemCount > bestCount ? item : best;
+    }, sampleResults[0]);
+    const densityPerLiter = estimatedCountPerMl * 1000;
+    const averageFrameCount = sampleResults.reduce(
+      (sum, result) => sum + Number(result.density.averageFrameCount ?? result.density.averageCount ?? 0),
+      0
+    ) / sampleResults.length;
+    const totalSampledFrames = sampleResults.reduce((sum, result) => sum + Number(result.density.sampledFrames ?? 0), 0);
+    const warnings = sampleResults.flatMap((result) =>
+      (result.density.warnings || []).map((warning) => `sample ${result.sampleIndex}: ${warning}`)
+    );
+    const vitalityScores = sampleResults.map((result) => Number(result.vitality.vitalityScore ?? result.vitality.score ?? 0));
+    const activeRatios = sampleResults
+      .map((result) => result.vitality.activeRatio)
+      .filter((value) => value !== undefined && value !== null)
+      .map(Number);
+    const averageSpeeds = sampleResults
+      .map((result) => result.vitality.averageSpeedMmPerSec)
+      .filter((value) => value !== undefined && value !== null)
+      .map(Number);
+    const averageVitalityScore = vitalityScores.reduce((sum, value) => sum + value, 0) / sampleResults.length;
+    const averageActiveRatio = activeRatios.length
+      ? activeRatios.reduce((sum, value) => sum + value, 0) / activeRatios.length
+      : null;
+    const averageSpeedMmPerSec = averageSpeeds.length
+      ? averageSpeeds.reduce((sum, value) => sum + value, 0) / averageSpeeds.length
+      : null;
+    const confirmedTracks = sampleResults.reduce((sum, result) => sum + Number(result.vitality.confirmedTracks ?? 0), 0);
+    const movingTracks = sampleResults.reduce((sum, result) => sum + Number(result.vitality.movingTracks ?? 0), 0);
+    const representativeTrack = selectRepresentativeTrack(sampleResults.slice(0, 1));
+    const trackingVideoUrl = sampleResults[0]?.vitality.trackingVideoUrl ?? null;
+    const modelResult = {
+      sampleCount: sampleResults.length,
+      sampleResults,
+      countValue: estimatedCountPerMl,
+      bestFrameCount,
+      estimatedCountPerMl,
+      densityPerLiter,
+      averageFrameCount,
+      sampledFrames: totalSampledFrames,
+      countMultiplier: sampleResults[0]?.density.countMultiplier,
+      videoDurationSeconds: sampleResults.reduce(
+        (sum, result) => sum + Number(result.density.videoDurationSeconds ?? 0),
+        0
+      ) / sampleResults.length,
+      selectedFrameIndex: representativeSample?.density.selectedFrameIndex,
+      selectedFrameTimestampSeconds: representativeSample?.density.selectedFrameTimestampSeconds,
+      selectedFrameQuality: representativeSample?.density.selectedFrameQuality,
+      densityGrade: estimatedCountPerMl >= 10 ? 'marketable' : 'low',
+      warnings,
+      frameCounts: sampleResults.flatMap((result) =>
+        (result.density.frameCounts || []).map((frame) => ({
+          ...frame,
+          frameIndex: ((result.sampleIndex - 1) * 100000) + Number(frame.frameIndex ?? 0),
+          sampleIndex: result.sampleIndex,
+        }))
+      ),
+      vitalityScore: averageVitalityScore,
+      activeRatio: averageActiveRatio,
+      averageSpeedMmPerSec,
+      confirmedTracks,
+      movingTracks,
+      representativeTrack,
+      trackingVideoUrl,
+      vitalityTrend: vitalityScores,
+    };
+    if (options.progressJobId) {
+      analysisProgressService.update(options.progressJobId, {
+        status: 'processing',
+        percent: 99,
+        message: '결과 저장 중',
+      });
+    }
+    const countValue = Math.round(estimatedCountPerMl);
+    const vitalityScore = Number(averageVitalityScore.toFixed(2));
 
     return withTransaction(async (client) => {
-      const uploadedFile = await createUploadedFile(file, input.boxId, client);
+      const uploadedFiles = [];
+      for (const file of densityFiles) {
+        uploadedFiles.push(await createUploadedFile(file, input.boxId, client));
+      }
       const job = await analysisJobRepository.create(
-        { boxId: input.boxId, uploadedFileId: uploadedFile?.id, type: 'density' },
+        { boxId: input.boxId, uploadedFileId: uploadedFiles[0]?.id, type: 'density' },
         client
       );
       await analysisJobRepository.markProcessing(job.id, client);
@@ -51,7 +287,7 @@ export const analysisService = {
           type: 'density',
           measuredAt: input.measuredAt,
           countValue,
-          densityPerCm2,
+          densityPerLiter,
           resultJson: modelResult,
         },
         client
@@ -60,29 +296,108 @@ export const analysisService = {
       await measurementRepository.createDensityResult(
         {
           measurementId: measurement.id,
-          measuredAreaCm2,
-          peakCount: modelResult.peakCount ?? countValue,
-          averageCount: modelResult.averageCount,
-          densityPerCm2,
+          measuredAreaCm2: null,
+          peakCount: bestFrameCount,
+          averageCount: modelResult.averageFrameCount ?? modelResult.averageCount,
+          densityPerCm2: null,
+          bestFrameCount,
+          estimatedCountPerMl,
+          densityPerLiter,
+          countMultiplier: modelResult.countMultiplier,
+          videoDurationSeconds: modelResult.videoDurationSeconds,
+          selectedFrameIndex: modelResult.selectedFrameIndex,
+          selectedFrameQuality: modelResult.selectedFrameQuality,
           densityGrade: modelResult.densityGrade,
+        },
+        client
+      );
+      await measurementRepository.createDensityFrameCounts(
+        measurement.id,
+        modelResult.frameCounts || [],
+        client
+      );
+
+      const vitalityJob = await analysisJobRepository.create(
+        { boxId: input.boxId, uploadedFileId: uploadedFiles[0]?.id, type: 'vitality' },
+        client
+      );
+      await analysisJobRepository.markProcessing(vitalityJob.id, client);
+
+      const vitalityMeasurement = await measurementRepository.create(
+        {
+          boxId: input.boxId,
+          analysisJobId: vitalityJob.id,
+          type: 'vitality',
+          measuredAt: input.measuredAt,
+          vitalityScore,
+          activeRatio: modelResult.activeRatio,
+          resultJson: modelResult,
+        },
+        client
+      );
+
+      await measurementRepository.createVitalityResult(
+        {
+          measurementId: vitalityMeasurement.id,
+          vitalityScore,
+          activeRatio: modelResult.activeRatio,
+          averageSpeedMmPerSec: modelResult.averageSpeedMmPerSec,
         },
         client
       );
 
       await analysisJobRepository.markCompleted(job.id, client);
+      await analysisJobRepository.markCompleted(vitalityJob.id, client);
 
       return {
         measurementId: measurement.id,
+        vitalityMeasurementId: vitalityMeasurement.id,
         boxId: input.boxId,
         type: 'density',
         measuredAt: measurement.measuredAt,
         density: {
-          currentDensityPerCm2: densityPerCm2,
-          measuredAreaCm2,
-          peakCount: modelResult.peakCount ?? countValue,
-          averageCount: modelResult.averageCount,
+          densityPerLiter,
+          currentDensityPerLiter: densityPerLiter,
+          estimatedCountPerMl,
+          bestFrameCount,
+          peakCount: bestFrameCount,
+          averageFrameCount: modelResult.averageFrameCount,
+          sampleCount: modelResult.sampleCount,
+          sampledFrames: modelResult.sampledFrames,
+          videoDurationSeconds: modelResult.videoDurationSeconds,
+          selectedFrameIndex: modelResult.selectedFrameIndex,
+          selectedFrameTimestampSeconds: modelResult.selectedFrameTimestampSeconds,
+          selectedFrameQuality: modelResult.selectedFrameQuality,
+          densityGrade: modelResult.densityGrade,
+          warnings: modelResult.warnings || [],
         },
+        vitality: {
+          score: vitalityScore,
+          activeRatio: modelResult.activeRatio,
+          averageSpeedMmPerSec: modelResult.averageSpeedMmPerSec,
+          confirmedTracks: modelResult.confirmedTracks,
+          movingTracks: modelResult.movingTracks,
+          representativeTrack: modelResult.representativeTrack,
+          trackingVideoUrl: modelResult.trackingVideoUrl,
+          trend: modelResult.vitalityTrend,
+          sampleCount: modelResult.sampleCount,
+        },
+        samples: sampleResults.map((sample) => ({
+          sampleIndex: sample.sampleIndex,
+          originalName: sample.originalName,
+          bestFrameCount: sample.density.bestFrameCount,
+          estimatedCountPerMl: sample.density.estimatedCountPerMl,
+          densityPerLiter: sample.density.densityPerLiter,
+          averageFrameCount: sample.density.averageFrameCount,
+          selectedFrameIndex: sample.density.selectedFrameIndex,
+          vitalityScore: Number(sample.vitality.vitalityScore ?? sample.vitality.score ?? 0),
+          activeRatio: sample.vitality.activeRatio,
+          averageSpeedMmPerSec: sample.vitality.averageSpeedMmPerSec,
+          confirmedTracks: sample.vitality.confirmedTracks,
+          movingTracks: sample.vitality.movingTracks,
+        })),
         measurement,
+        vitalityMeasurement,
       };
     });
   },

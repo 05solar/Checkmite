@@ -23,6 +23,7 @@ export const parseMeasurementInput = (body) => {
     measuredAt: measuredAt.toISOString(),
     countValue: body.countValue === undefined ? undefined : Number(body.countValue),
     densityPerCm2: body.densityPerCm2 === undefined ? undefined : Number(body.densityPerCm2),
+    densityPerLiter: body.densityPerLiter === undefined ? undefined : Number(body.densityPerLiter),
     vitalityScore: body.vitalityScore === undefined ? undefined : Number(body.vitalityScore),
     activeRatio: body.activeRatio === undefined ? undefined : Number(body.activeRatio),
     resultJson: body.resultJson || body.resultSummary || {},

@@ -4,6 +4,7 @@ node_modules/
 __pycache__/
 .pytest_cache/
 model/best.pt
+model/vitality/*.onnx
 
 # Build output
 dist/
