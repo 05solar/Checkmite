@@ -10,6 +10,10 @@ build/
 .env.*
 !.env.example
 
+# Local Codex session context
+memory/
+status_report/
+
 # Logs
 *.log
 npm-debug.log*
@@ -20,6 +24,7 @@ pnpm-debug.log*
 # Editor and OS files
 .DS_Store
 Thumbs.db
+*.swp
 .vscode/
 .idea/
 
