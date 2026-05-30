@@ -1,4 +1,5 @@
 .upload {
+  position: relative;
   border: 1.5px dashed var(--border-strong);
   border-radius: var(--radius);
   background: var(--surface-2);
@@ -6,6 +7,14 @@
   text-align: center;
   transition: all .18s;
   cursor: pointer;
+}
+
+.upload-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 .upload:hover,
 .upload.drag {
