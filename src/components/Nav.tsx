@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import './Nav.css';
 import checkmiteTitle from '../public/checkmite-title.png';
 import { Icon } from './Icons';
@@ -17,6 +18,13 @@ interface NavProps {
 }
 
 export function Nav({ tab, onTab, theme, onTheme }: NavProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const selectTab = (id: TabId) => {
+    onTab(id);
+    setMenuOpen(false);
+  };
+
   return (
     <nav className="nav">
       <div className="brand">
@@ -27,13 +35,37 @@ export function Nav({ tab, onTab, theme, onTheme }: NavProps) {
           <button
             key={t.id}
             className={`nav-tab${tab === t.id ? ' active' : ''}`}
-            onClick={() => onTab(t.id)}
+            onClick={() => selectTab(t.id)}
           >
             <Icon name={t.icon} /><span>{t.label}</span>
           </button>
         ))}
       </div>
       <div className="nav-right">
+        <div className="mobile-menu">
+          <button
+            className="icon-btn"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-label="메뉴 열기"
+            aria-expanded={menuOpen}
+          >
+            <Icon name={menuOpen ? 'x' : 'menu'} />
+          </button>
+          {menuOpen && (
+            <div className="mobile-menu-panel">
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  className={`mobile-menu-item${tab === t.id ? ' active' : ''}`}
+                  onClick={() => selectTab(t.id)}
+                >
+                  <Icon name={t.icon} />
+                  <span>{t.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <button
           className="icon-btn"
           onClick={onTheme}

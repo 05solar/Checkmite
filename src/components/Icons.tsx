@@ -32,6 +32,7 @@ const ICONS: Record<string, string | string[]> = {
   play:     'M7 5v14l11-7z',
   pause:    ['M8 5v14', 'M16 5v14'],
   x:        ['M6 6l12 12', 'M18 6L6 18'],
+  menu:     ['M4 7h16', 'M4 12h16', 'M4 17h16'],
   check:    'M5 12l5 5L20 6',
   chevron:  'M6 9l6 6 6-6',
   sun:      ['M12 3v2', 'M12 19v2', 'M5 5l1.4 1.4', 'M17.6 17.6L19 19', 'M3 12h2', 'M19 12h2', 'M5 19l1.4-1.4', 'M17.6 6.4L19 5'],
