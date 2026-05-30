@@ -7,10 +7,17 @@
     "dev": "vite",
     "api": "uvicorn api.model_server:app --host 0.0.0.0 --port 8000",
     "api:install": "python3 -m venv .venv && . .venv/bin/activate && python -m pip install -r api/requirements.txt",
+    "backend:dev": "node backend/src/server.js",
+    "backend:migrate": "node backend/src/db/migrate.js",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "multer": "^2.1.1",
+    "pg": "^8.21.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
