@@ -7,7 +7,8 @@ import { Processing } from '../components/Processing';
 import { Placeholder } from '../components/Placeholder';
 import { Badge, gradeOf } from '../components/Badge';
 import { LineChart } from '../components/LineChart';
-import type { PhaseId } from '../types';
+import { BoxSelector } from '../components/BoxSelector';
+import type { CultureBox, Measurement, PhaseId } from '../types';
 
 const DEN_STEPS = [
   '영상 디코딩 및 프레임 분할…',
@@ -163,8 +164,30 @@ function DensityResult({ onReset }: DensityResultProps) {
   );
 }
 
-export function DensityPage() {
+interface DensityPageProps {
+  boxes: CultureBox[];
+  selectedBoxId: string;
+  onBoxChange: (id: string) => void;
+  onMeasurementAdd: (measurement: Omit<Measurement, 'id' | 'measuredAt'>) => void;
+}
+
+export function DensityPage({ boxes, selectedBoxId, onBoxChange, onMeasurementAdd }: DensityPageProps) {
   const [phase, setPhase] = useState<PhaseId>('idle');
+
+  const finishAnalysis = () => {
+    onMeasurementAdd({
+      boxId: selectedBoxId,
+      type: 'density',
+      countValue: PEAK,
+      densityPerCm2: Number((PEAK / AREA_CM2).toFixed(1)),
+      resultJson: {
+        peakCount: PEAK,
+        averageCount: Math.round(FRAME_COUNTS.reduce((a, b) => a + b, 0) / FRAME_COUNTS.length),
+        areaCm2: AREA_CM2,
+      },
+    });
+    setPhase('result');
+  };
 
   return (
     <div className="page">
@@ -172,6 +195,10 @@ export function DensityPage() {
         <div className="page-eyebrow"><span className="pe-dot" />밀도 측정 · DENSITY</div>
         <h1 className="page-title">영상 기반 밀도 측정</h1>
         <p className="page-desc">영상을 업로드하면 서버가 프레임마다 응애를 추적해 마릿수를 집계하고, 단위 면적당 밀도와 등급을 환산합니다.</p>
+      </div>
+
+      <div style={{ marginBottom: 18 }}>
+        <BoxSelector boxes={boxes} value={selectedBoxId} onChange={onBoxChange} />
       </div>
 
       {phase === 'idle' && (
@@ -195,7 +222,7 @@ export function DensityPage() {
         </div>
       )}
 
-      {phase === 'proc' && <Processing steps={DEN_STEPS} onDone={() => setPhase('result')} duration={3200} />}
+      {phase === 'proc' && <Processing steps={DEN_STEPS} onDone={finishAnalysis} duration={3200} />}
       {phase === 'result' && <DensityResult onReset={() => setPhase('idle')} />}
     </div>
   );

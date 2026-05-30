@@ -1,0 +1,76 @@
+.trash-empty {
+  min-height: 240px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  color: var(--text-3);
+  text-align: center;
+}
+
+.trash-empty svg {
+  width: 34px;
+  height: 34px;
+  color: var(--text-3);
+}
+
+.trash-empty strong {
+  color: var(--text);
+  font-size: 16px;
+}
+
+.trash-list {
+  display: grid;
+  gap: 14px;
+}
+
+.trash-item {
+  display: grid;
+  gap: 12px;
+}
+
+.trash-item-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.trash-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.trash-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 6px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.trash-memo {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.trash-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 720px) {
+  .trash-item-main {
+    flex-direction: column;
+  }
+
+  .trash-actions {
+    justify-content: stretch;
+  }
+
+  .trash-actions .btn {
+    width: 100%;
+  }
+}

@@ -8,6 +8,8 @@ const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: 'detection', label: '객체 탐지', icon: 'scan' },
   { id: 'density', label: '밀도 측정', icon: 'grid' },
   { id: 'vitality', label: '활력도 측정', icon: 'pulse' },
+  { id: 'growth', label: '증식률 분석', icon: 'growth' },
+  { id: 'trash', label: '휴지통', icon: 'trash' },
 ];
 
 interface NavProps {
@@ -63,11 +65,18 @@ export function Nav({ tab, onTab, theme, onTheme }: NavProps) {
                   <span>{t.label}</span>
                 </button>
               ))}
+              <div className="mobile-menu-divider" />
+              <button className="mobile-theme-toggle" onClick={onTheme}>
+                <span>다크 모드</span>
+                <span className={`theme-switch${theme === 'dark' ? ' on' : ''}`} aria-hidden="true">
+                  <span />
+                </span>
+              </button>
             </div>
           )}
         </div>
         <button
-          className="icon-btn"
+          className="icon-btn desktop-theme-btn"
           onClick={onTheme}
           aria-label="테마 전환"
           title={theme === 'dark' ? '라이트 모드' : '다크 모드'}

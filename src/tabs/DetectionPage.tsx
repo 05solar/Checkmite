@@ -6,7 +6,8 @@ import { FileChip } from '../components/FileChip';
 import { Processing } from '../components/Processing';
 import { Placeholder } from '../components/Placeholder';
 import { Badge } from '../components/Badge';
-import type { PhaseId, DetectionBox } from '../types';
+import { BoxSelector } from '../components/BoxSelector';
+import type { CultureBox, DetectionBox, Measurement, PhaseId } from '../types';
 
 const DET_BOXES: DetectionBox[] = [
   { id: 1,  cls: 'predator', conf: 0.962, x: 14, y: 22, w: 13, h: 16 },
@@ -139,8 +140,28 @@ function DetectionResult({ onReset }: DetectionResultProps) {
   );
 }
 
-export function DetectionPage() {
+interface DetectionPageProps {
+  boxes: CultureBox[];
+  selectedBoxId: string;
+  onBoxChange: (id: string) => void;
+  onMeasurementAdd: (measurement: Omit<Measurement, 'id' | 'measuredAt'>) => void;
+}
+
+export function DetectionPage({ boxes, selectedBoxId, onBoxChange, onMeasurementAdd }: DetectionPageProps) {
   const [phase, setPhase] = useState<PhaseId>('idle');
+
+  const finishAnalysis = () => {
+    onMeasurementAdd({
+      boxId: selectedBoxId,
+      type: 'detection',
+      countValue: DET_BOXES.length,
+      resultJson: {
+        predatorCount: DET_BOXES.filter((box) => box.cls === 'predator').length,
+        preyCount: DET_BOXES.filter((box) => box.cls === 'prey').length,
+      },
+    });
+    setPhase('result');
+  };
 
   return (
     <div className="page">
@@ -148,6 +169,10 @@ export function DetectionPage() {
         <div className="page-eyebrow"><span className="pe-dot" />객체 탐지 · OBJECT DETECTION</div>
         <h1 className="page-title">사진 속 응애 탐지</h1>
         <p className="page-desc">응애가 촬영된 사진을 업로드하면 서버가 천적·해충 개체를 탐지하고, 종류별 마릿수와 개체별 신뢰도를 보여줍니다.</p>
+      </div>
+
+      <div style={{ marginBottom: 18 }}>
+        <BoxSelector boxes={boxes} value={selectedBoxId} onChange={onBoxChange} />
       </div>
 
       {phase === 'idle' && (
@@ -171,7 +196,7 @@ export function DetectionPage() {
         </div>
       )}
 
-      {phase === 'proc' && <Processing steps={DET_STEPS} onDone={() => setPhase('result')} />}
+      {phase === 'proc' && <Processing steps={DET_STEPS} onDone={finishAnalysis} />}
       {phase === 'result' && <DetectionResult onReset={() => setPhase('idle')} />}
     </div>
   );

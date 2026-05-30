@@ -44,6 +44,9 @@ const ICONS: Record<string, string | string[]> = {
   layers:   ['M12 2 2 7l10 5 10-5z', 'M2 12l10 5 10-5', 'M2 17l10 5 10-5'],
   download: ['M12 4v12', 'M7 11l5 5 5-5', 'M4 20h16'],
   trend:    'M3 17l6-6 4 4 8-8',
+  growth:   ['M4 19V5', 'M4 19h16', 'M7 15l4-4 3 3 5-7'],
+  trash:    ['M4 7h16', 'M9 7V4h6v3', 'M7 7l1 14h8l1-14', 'M10 11v6', 'M14 11v6'],
+  restore:  ['M4 7v5h5', 'M5 12a7 7 0 1 0 2-5', 'M4 12l4-4'],
   spark:    'M12 3l2.2 6.2L20 11l-5.8 1.8L12 19l-2.2-6.2L4 11l5.8-1.8z',
   ruler:    ['M3 8l13 13 5-5L8 3z', 'M7 8l2 2', 'M11 6l2 2', 'M9 12l2 2', 'M13 10l2 2'],
 };

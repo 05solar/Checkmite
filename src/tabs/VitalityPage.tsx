@@ -8,7 +8,8 @@ import { Badge, gradeOf } from '../components/Badge';
 import { Gauge } from '../components/Gauge';
 import { Heatmap } from '../components/Heatmap';
 import { LineChart } from '../components/LineChart';
-import type { PhaseId } from '../types';
+import { BoxSelector } from '../components/BoxSelector';
+import type { CultureBox, Measurement, PhaseId } from '../types';
 
 const VIT_STEPS = [
   '영상 디코딩 및 프레임 분할…',
@@ -99,8 +100,29 @@ function VitalityResult({ onReset }: VitalityResultProps) {
   );
 }
 
-export function VitalityPage() {
+interface VitalityPageProps {
+  boxes: CultureBox[];
+  selectedBoxId: string;
+  onBoxChange: (id: string) => void;
+  onMeasurementAdd: (measurement: Omit<Measurement, 'id' | 'measuredAt'>) => void;
+}
+
+export function VitalityPage({ boxes, selectedBoxId, onBoxChange, onMeasurementAdd }: VitalityPageProps) {
   const [phase, setPhase] = useState<PhaseId>('idle');
+
+  const finishAnalysis = () => {
+    onMeasurementAdd({
+      boxId: selectedBoxId,
+      type: 'vitality',
+      vitalityScore: VIT_SCORE,
+      activeRatio: 0.86,
+      resultJson: {
+        score: VIT_SCORE,
+        trend: VIT_TREND,
+      },
+    });
+    setPhase('result');
+  };
 
   return (
     <div className="page">
@@ -108,6 +130,10 @@ export function VitalityPage() {
         <div className="page-eyebrow"><span className="pe-dot" />활력도 측정 · VITALITY</div>
         <h1 className="page-title">영상 기반 활력도 측정</h1>
         <p className="page-desc">영상을 업로드하면 서버가 개체들의 움직임을 분석해 0~100점의 활력도 점수와 움직임 히트맵을 산출합니다.</p>
+      </div>
+
+      <div style={{ marginBottom: 18 }}>
+        <BoxSelector boxes={boxes} value={selectedBoxId} onChange={onBoxChange} />
       </div>
 
       {phase === 'idle' && (
@@ -131,7 +157,7 @@ export function VitalityPage() {
         </div>
       )}
 
-      {phase === 'proc' && <Processing steps={VIT_STEPS} onDone={() => setPhase('result')} duration={3000} />}
+      {phase === 'proc' && <Processing steps={VIT_STEPS} onDone={finishAnalysis} duration={3000} />}
       {phase === 'result' && <VitalityResult onReset={() => setPhase('idle')} />}
     </div>
   );
