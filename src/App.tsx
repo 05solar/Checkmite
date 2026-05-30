@@ -65,6 +65,7 @@ export function App() {
       setSelectedBoxId(created.id);
     } catch (e) {
       console.error('사육박스 추가 실패', e);
+      throw e;
     }
   }, []);
 
@@ -119,6 +120,7 @@ export function App() {
           boxes={boxes}
           selectedBoxId={selectedBoxId}
           onBoxChange={handleBoxChange}
+          onBoxCreate={addCultureBox}
         />
       )}
       {tab === 'density' && (
@@ -126,6 +128,7 @@ export function App() {
           boxes={boxes}
           selectedBoxId={selectedBoxId}
           onBoxChange={handleBoxChange}
+          onBoxCreate={addCultureBox}
         />
       )}
       {tab === 'vitality' && (
@@ -133,6 +136,7 @@ export function App() {
           boxes={boxes}
           selectedBoxId={selectedBoxId}
           onBoxChange={handleBoxChange}
+          onBoxCreate={addCultureBox}
         />
       )}
       {tab === 'growth' && (

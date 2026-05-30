@@ -5,6 +5,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
 
+import cv2
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from ultralytics import YOLO
@@ -13,8 +14,11 @@ from ultralytics import YOLO
 ROOT_DIR = Path(__file__).resolve().parents[1]
 MODEL_PATH = Path(os.getenv("CHECKMITE_MODEL_PATH", ROOT_DIR / "model" / "best.pt"))
 MODEL_PART_GLOB = "best.pt.part-*"
-DEFAULT_CONF = float(os.getenv("CHECKMITE_CONF", "0.25"))
+DEFAULT_CONF = float(os.getenv("CHECKMITE_CONF", "0.5"))
 DEFAULT_IMGSZ = int(os.getenv("CHECKMITE_IMGSZ", "640"))
+DEFAULT_TILE_SIZE = int(os.getenv("CHECKMITE_TILE_SIZE", "640"))
+DEFAULT_TILE_OVERLAP = float(os.getenv("CHECKMITE_TILE_OVERLAP", "0.5"))
+DEFAULT_NMS_IOU = float(os.getenv("CHECKMITE_NMS_IOU", "0.3"))
 CLASS_NAMES = {
     0: "predator",
     1: "prey",
@@ -78,6 +82,120 @@ def box_to_dict(box: Any, index: int) -> dict[str, Any]:
     }
 
 
+def detection_to_dict(
+    *,
+    index: int,
+    cls_id: int,
+    conf: float,
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+) -> dict[str, Any]:
+    return {
+        "id": index,
+        "class_id": cls_id,
+        "class_name": CLASS_NAMES.get(cls_id, str(cls_id)),
+        "confidence": conf,
+        "box": {
+            "x1": x1,
+            "y1": y1,
+            "x2": x2,
+            "y2": y2,
+            "width": x2 - x1,
+            "height": y2 - y1,
+        },
+    }
+
+
+def axis_starts(length: int, tile_size: int, overlap: float) -> list[int]:
+    if length <= tile_size:
+        return [0]
+
+    stride = max(1, int(tile_size * (1 - overlap)))
+    starts = list(range(0, length - tile_size + 1, stride))
+    last = length - tile_size
+    if starts[-1] != last:
+        starts.append(last)
+    return starts
+
+
+def box_iou(a: dict[str, Any], b: dict[str, Any]) -> float:
+    ab = a["box"]
+    bb = b["box"]
+    x1 = max(ab["x1"], bb["x1"])
+    y1 = max(ab["y1"], bb["y1"])
+    x2 = min(ab["x2"], bb["x2"])
+    y2 = min(ab["y2"], bb["y2"])
+    inter_w = max(0.0, x2 - x1)
+    inter_h = max(0.0, y2 - y1)
+    inter = inter_w * inter_h
+    if inter <= 0:
+        return 0.0
+
+    area_a = max(0.0, ab["width"]) * max(0.0, ab["height"])
+    area_b = max(0.0, bb["width"]) * max(0.0, bb["height"])
+    union = area_a + area_b - inter
+    return inter / union if union > 0 else 0.0
+
+
+def class_aware_nms(detections: list[dict[str, Any]], iou_threshold: float) -> list[dict[str, Any]]:
+    kept: list[dict[str, Any]] = []
+    for det in sorted(detections, key=lambda item: item["confidence"], reverse=True):
+        duplicate = any(
+            det["class_id"] == kept_det["class_id"] and box_iou(det, kept_det) > iou_threshold
+            for kept_det in kept
+        )
+        if not duplicate:
+            kept.append(det)
+
+    for index, det in enumerate(kept, start=1):
+        det["id"] = index
+    return kept
+
+
+def predict_tiled(
+    *,
+    model: YOLO,
+    image_path: Path,
+    conf: float,
+    imgsz: int,
+    tile_size: int,
+    overlap: float,
+    nms_iou: float,
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    image = cv2.imread(str(image_path))
+    if image is None:
+        raise HTTPException(status_code=400, detail="Could not decode image")
+
+    height, width = image.shape[:2]
+    xs = axis_starts(width, tile_size, overlap)
+    ys = axis_starts(height, tile_size, overlap)
+    detections: list[dict[str, Any]] = []
+
+    for y in ys:
+        for x in xs:
+            tile = image[y : min(y + tile_size, height), x : min(x + tile_size, width)]
+            result = model.predict(tile, conf=conf, imgsz=imgsz, iou=nms_iou, verbose=False)[0]
+            for box in result.boxes:
+                cls_id = int(box.cls[0])
+                box_conf = float(box.conf[0])
+                x1, y1, x2, y2 = [float(v) for v in box.xyxy[0]]
+                detections.append(
+                    detection_to_dict(
+                        index=len(detections) + 1,
+                        cls_id=cls_id,
+                        conf=box_conf,
+                        x1=max(0.0, min(width, x1 + x)),
+                        y1=max(0.0, min(height, y1 + y)),
+                        x2=max(0.0, min(width, x2 + x)),
+                        y2=max(0.0, min(height, y2 + y)),
+                    )
+                )
+
+    return class_aware_nms(detections, nms_iou), {"width": width, "height": height, "tiles": len(xs) * len(ys)}
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     return {
@@ -96,6 +214,13 @@ def model_info() -> dict[str, Any]:
         "weights": str(MODEL_PATH.relative_to(ROOT_DIR)),
         "weight_parts": [str(p.relative_to(ROOT_DIR)) for p in sorted(MODEL_PATH.parent.glob(MODEL_PART_GLOB))],
         "input_size": DEFAULT_IMGSZ,
+        "inference": {
+            "mode": "sahi-style-tiled",
+            "tile_size": DEFAULT_TILE_SIZE,
+            "tile_overlap_ratio": DEFAULT_TILE_OVERLAP,
+            "confidence": DEFAULT_CONF,
+            "nms_iou_threshold": DEFAULT_NMS_IOU,
+        },
         "classes": CLASS_NAMES,
         "training_summary": {
             "base_model": "yolov8m.pt",
@@ -114,8 +239,16 @@ async def predict_image(
     file: UploadFile = File(...),
     conf: float = DEFAULT_CONF,
     imgsz: int = DEFAULT_IMGSZ,
+    tile_size: int = DEFAULT_TILE_SIZE,
+    overlap: float = DEFAULT_TILE_OVERLAP,
+    nms: float = DEFAULT_NMS_IOU,
 ) -> dict[str, Any]:
-    if file.content_type and not file.content_type.startswith("image/"):
+    allowed_content_types = {"application/octet-stream", "binary/octet-stream"}
+    if (
+        file.content_type
+        and not file.content_type.startswith("image/")
+        and file.content_type not in allowed_content_types
+    ):
         raise HTTPException(status_code=400, detail="Only image uploads are supported")
 
     suffix = Path(file.filename or "upload.jpg").suffix or ".jpg"
@@ -124,18 +257,39 @@ async def predict_image(
         tmp_path = Path(tmp.name)
 
     try:
+        if tile_size <= 0:
+            raise HTTPException(status_code=400, detail="tile_size must be greater than 0")
+        if not 0 <= overlap < 1:
+            raise HTTPException(status_code=400, detail="overlap must be between 0 and 1")
+        if not 0 <= nms <= 1:
+            raise HTTPException(status_code=400, detail="nms must be between 0 and 1")
+
         model = get_model()
-        result = model.predict(str(tmp_path), conf=conf, imgsz=imgsz, verbose=False)[0]
-        detections = [box_to_dict(box, i + 1) for i, box in enumerate(result.boxes)]
+        detections, image_info = predict_tiled(
+            model=model,
+            image_path=tmp_path,
+            conf=conf,
+            imgsz=imgsz,
+            tile_size=tile_size,
+            overlap=overlap,
+            nms_iou=nms,
+        )
         counts = {name: 0 for name in CLASS_NAMES.values()}
         for det in detections:
             counts[det["class_name"]] = counts.get(det["class_name"], 0) + 1
 
-        height, width = result.orig_shape
         return {
             "filename": file.filename,
-            "image": {"width": width, "height": height},
-            "settings": {"confidence": conf, "image_size": imgsz},
+            "image": {"width": image_info["width"], "height": image_info["height"]},
+            "settings": {
+                "confidence": conf,
+                "image_size": imgsz,
+                "mode": "sahi-style-tiled",
+                "tile_size": tile_size,
+                "overlap": overlap,
+                "nms_threshold": nms,
+                "tiles_processed": image_info["tiles"],
+            },
             "counts": counts,
             "total": len(detections),
             "detections": detections,
