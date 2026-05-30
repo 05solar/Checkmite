@@ -87,9 +87,10 @@ interface VitalityPageProps {
   boxes: CultureBox[];
   selectedBoxId: string;
   onBoxChange: (id: string) => void;
+  onBoxCreate: (box: Omit<CultureBox, 'id'>) => Promise<void> | void;
 }
 
-export function VitalityPage({ boxes, selectedBoxId, onBoxChange }: VitalityPageProps) {
+export function VitalityPage({ boxes, selectedBoxId, onBoxChange, onBoxCreate }: VitalityPageProps) {
   const [phase, setPhase] = useState<PhaseId>('idle');
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<VitalityResult['vitality'] | null>(null);
@@ -138,7 +139,7 @@ export function VitalityPage({ boxes, selectedBoxId, onBoxChange }: VitalityPage
       </div>
 
       <div style={{ marginBottom: 18 }}>
-        <BoxSelector boxes={boxes} value={selectedBoxId} onChange={onBoxChange} />
+        <BoxSelector boxes={boxes} value={selectedBoxId} onChange={onBoxChange} onCreate={onBoxCreate} />
       </div>
 
       {error && (

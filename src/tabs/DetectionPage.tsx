@@ -97,7 +97,7 @@ function DetectionResultView({ file, boxes, onReset }: DetectionResultViewProps)
             <Badge kind="accent" dot>완료</Badge>
           </div>
           <div className="metric-row"><span className="mr-k">파일명</span><span className="mr-v mono">{file.name}</span></div>
-          <div className="metric-row"><span className="mr-k">신뢰도 임계값</span><span className="mr-v mono">0.25</span></div>
+          <div className="metric-row"><span className="mr-k">신뢰도 임계값</span><span className="mr-v mono">0.50</span></div>
           <div className="metric-row"><span className="mr-k">평균 신뢰도</span><span className="mr-v mono">{avgConf}%</span></div>
         </div>
       </div>
@@ -175,9 +175,10 @@ interface DetectionPageProps {
   boxes: CultureBox[];
   selectedBoxId: string;
   onBoxChange: (id: string) => void;
+  onBoxCreate: (box: Omit<CultureBox, 'id'>) => Promise<void> | void;
 }
 
-export function DetectionPage({ boxes, selectedBoxId, onBoxChange }: DetectionPageProps) {
+export function DetectionPage({ boxes, selectedBoxId, onBoxChange, onBoxCreate }: DetectionPageProps) {
   const [phase, setPhase] = useState<PhaseId>('idle');
   const [file, setFile] = useState<File | null>(null);
   const [detBoxes, setDetBoxes] = useState<DetectionBox[]>([]);
@@ -235,7 +236,7 @@ export function DetectionPage({ boxes, selectedBoxId, onBoxChange }: DetectionPa
       </div>
 
       <div style={{ marginBottom: 18 }}>
-        <BoxSelector boxes={boxes} value={selectedBoxId} onChange={onBoxChange} />
+        <BoxSelector boxes={boxes} value={selectedBoxId} onChange={onBoxChange} onCreate={onBoxCreate} />
       </div>
 
       {error && (

@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import type { FormEvent } from 'react';
 import './GrowthPage.css';
 import { Badge } from '../components/Badge';
 import { BoxSelector } from '../components/BoxSelector';
@@ -29,9 +28,6 @@ export function GrowthPage({
   onBoxDelete,
 }: GrowthPageProps) {
   const box = boxes.find((item) => item.id === selectedBoxId) ?? boxes[0];
-  const [name, setName] = useState('');
-  const [startedAt, setStartedAt] = useState(() => new Date().toISOString().slice(0, 10));
-  const [memo, setMemo] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<CultureBox | null>(null);
   const [growth, setGrowth] = useState<GrowthResult | null>(null);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
@@ -55,16 +51,6 @@ export function GrowthPage({
   const growthBadge =
     growthLabel === '증식 활발' ? 'high' : growthLabel === '감소 추세' ? 'low' : 'mid';
 
-  const submitBox = (event: FormEvent) => {
-    event.preventDefault();
-    const trimmedName = name.trim();
-    if (!trimmedName) return;
-    onBoxAdd({ name: trimmedName, startedAt, memo: memo.trim() || undefined });
-    setName('');
-    setStartedAt(new Date().toISOString().slice(0, 10));
-    setMemo('');
-  };
-
   return (
     <div className="page">
       <div className="page-head">
@@ -76,28 +62,16 @@ export function GrowthPage({
       </div>
 
       <div className="grid grid-2 growth-admin">
-        <BoxSelector boxes={boxes} value={box?.id ?? ''} onChange={onBoxChange} />
-        <form className="card growth-box-form" onSubmit={submitBox}>
+        <BoxSelector boxes={boxes} value={box?.id ?? ''} onChange={onBoxChange} onCreate={onBoxAdd} />
+        <div className="card growth-box-form">
           <div className="card-head">
             <div className="card-title"><Icon name="box" />사육박스 관리</div>
             <Badge kind="neutral">{boxes.length}개</Badge>
           </div>
-          <div className="growth-form-grid growth-form-grid-compact">
-            <label>
-              <span>박스 이름</span>
-              <input value={name} onChange={(event) => setName(event.target.value)} placeholder="예: C동 1번 사육박스" />
-            </label>
-            <label>
-              <span>시작일</span>
-              <input type="date" value={startedAt} onChange={(event) => setStartedAt(event.target.value)} />
-            </label>
-            <label className="growth-form-wide">
-              <span>메모</span>
-              <input value={memo} onChange={(event) => setMemo(event.target.value)} placeholder="조건, 위치, 배지 정보" />
-            </label>
-          </div>
+          <p className="growth-admin-copy">
+            사육박스 추가는 왼쪽 선택기의 추가 버튼에서 바로 등록합니다. 삭제는 현재 선택된 박스를 휴지통으로 이동합니다.
+          </p>
           <div className="growth-form-actions">
-            <button className="btn btn-primary" type="submit"><Icon name="check" />추가</button>
             <button
               className="btn btn-ghost"
               type="button"
@@ -107,7 +81,7 @@ export function GrowthPage({
               <Icon name="x" />선택 박스 삭제
             </button>
           </div>
-        </form>
+        </div>
       </div>
 
       <div className="grid grid-4">

@@ -94,6 +94,7 @@ export const analysisService = {
     const modelResult = await modelRuntimeService.inferVitality({
       cultureBoxId: input.boxId,
       filePath: file?.path,
+      mimeType: file?.mimetype,
       measuredAt: input.measuredAt,
     });
 

@@ -93,9 +93,10 @@ interface DensityPageProps {
   boxes: CultureBox[];
   selectedBoxId: string;
   onBoxChange: (id: string) => void;
+  onBoxCreate: (box: Omit<CultureBox, 'id'>) => Promise<void> | void;
 }
 
-export function DensityPage({ boxes, selectedBoxId, onBoxChange }: DensityPageProps) {
+export function DensityPage({ boxes, selectedBoxId, onBoxChange, onBoxCreate }: DensityPageProps) {
   const [phase, setPhase] = useState<PhaseId>('idle');
   const [file, setFile] = useState<File | null>(null);
   const [areaCm2, setAreaCm2] = useState('12');
@@ -147,7 +148,7 @@ export function DensityPage({ boxes, selectedBoxId, onBoxChange }: DensityPagePr
       </div>
 
       <div style={{ marginBottom: 18 }}>
-        <BoxSelector boxes={boxes} value={selectedBoxId} onChange={onBoxChange} />
+        <BoxSelector boxes={boxes} value={selectedBoxId} onChange={onBoxChange} onCreate={onBoxCreate} />
       </div>
 
       {error && (

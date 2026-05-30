@@ -8,12 +8,20 @@ const inferDetection = async (payload) => {
     const buffer = await readFile(payload.filePath);
     const filename = payload.filePath.split(/[\\/]/).pop() || 'upload.jpg';
     const form = new FormData();
-    form.append('file', new Blob([buffer]), filename);
+    form.append('file', new Blob([buffer], { type: payload.mimeType || 'application/octet-stream' }), filename);
 
-    const response = await fetch(`${env.modelRuntimeUrl}/predict/image`, {
+    const params = new URLSearchParams({
+      conf: '0.5',
+      imgsz: '640',
+      tile_size: '640',
+      overlap: '0.5',
+      nms: '0.3',
+    });
+
+    const response = await fetch(`${env.modelRuntimeUrl}/predict/image?${params}`, {
       method: 'POST',
       body: form,
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(120_000),
     });
 
     if (!response.ok) throw new Error(`Model runtime responded with ${response.status}`);
@@ -34,6 +42,7 @@ const inferDetection = async (payload) => {
       })),
     };
   } catch (error) {
+    console.warn('Detection model runtime failed; using fallback result.', error);
     if (env.modelRuntimeRequired) throw error;
     return {
       countValue: 12,

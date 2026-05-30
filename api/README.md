@@ -23,14 +23,21 @@ python -m pip install -r api/requirements.txt
 ## Run
 
 ```bash
-uvicorn api.model_server:app --host 0.0.0.0 --port 8000
+.venv/bin/uvicorn api.model_server:app --host 0.0.0.0 --port 8000
 ```
 
 The model path can be overridden:
 
 ```bash
-CHECKMITE_MODEL_PATH=/path/to/best.pt uvicorn api.model_server:app --host 0.0.0.0 --port 8000
+CHECKMITE_MODEL_PATH=/path/to/best.pt .venv/bin/uvicorn api.model_server:app --host 0.0.0.0 --port 8000
 ```
+
+Image detection uses SAHI-style tiled inference by default:
+
+- tile size: `640`
+- tile overlap: `0.5`
+- confidence threshold: `0.5`
+- global class-aware NMS IoU threshold: `0.3`
 
 ## Endpoints
 
@@ -41,5 +48,5 @@ CHECKMITE_MODEL_PATH=/path/to/best.pt uvicorn api.model_server:app --host 0.0.0.
 Example:
 
 ```bash
-curl -F "file=@sample.jpg" "http://localhost:8000/predict/image?conf=0.25&imgsz=640"
+curl -F "file=@sample.jpg" "http://localhost:8000/predict/image?conf=0.5&imgsz=640&tile_size=640&overlap=0.5&nms=0.3"
 ```
