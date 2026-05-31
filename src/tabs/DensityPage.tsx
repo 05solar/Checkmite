@@ -4,7 +4,6 @@ import { Icon } from '../components/Icons';
 import { FileChip } from '../components/FileChip';
 import { Processing } from '../components/Processing';
 import { Badge, gradeOf } from '../components/Badge';
-import { LineChart } from '../components/LineChart';
 import { BoxSelector } from '../components/BoxSelector';
 import { api } from '../api/client';
 import type { DensityProgress, DensityResult } from '../api/client';
@@ -72,72 +71,81 @@ function vitalityNotice(vitality: DensityResult['vitality']) {
 
 function DensityResultView({ data, onReset }: DensityResultViewProps) {
   const density = data.density;
-  const perLiter = density.currentDensityPerLiter.toLocaleString();
-  const level = density.densityGrade === 'marketable' ? '상품성 있음' : '낮음';
-  const quality = density.selectedFrameQuality;
   const vitality = data.vitality;
+  const perLiter = density.currentDensityPerLiter.toLocaleString();
+  const densityLevel = density.densityGrade === 'marketable' ? '상품성 있음' : '낮음';
   const activeRatioPct = vitality?.activeRatio != null ? Math.round(vitality.activeRatio * 100) : null;
-  const representativeTrack = vitality?.representativeTrack;
   const notice = vitalityNotice(vitality);
+  const noticeLevel = notice?.level ?? 'normal';
+  const noticeBadgeKind = noticeLevel === 'danger' ? 'low' as const : noticeLevel === 'caution' ? 'mid' as const : 'high' as const;
 
   return (
-    <div className="fade-in grid grid-2">
-      <div>
-        <div className="card" style={{ marginTop: 18 }}>
-          <div className="card-head">
-            <div className="card-title"><Icon name="trend" />밀도 정보</div>
-            <Badge kind="accent" dot>완료</Badge>
-          </div>
-          <div className="metric-row"><span className="mr-k">평균 프레임 count</span><span className="mr-v mono">{density.averageFrameCount?.toFixed(1) ?? '-'}마리</span></div>
-          <div className="metric-row"><span className="mr-k">평균 1 mL 밀도</span><span className="mr-v mono">{density.estimatedCountPerMl.toLocaleString()}마리</span></div>
-          <div className="metric-row"><span className="mr-k">최대 프레임 count</span><span className="mr-v mono">{density.bestFrameCount}마리</span></div>
-          <div className="metric-row"><span className="mr-k">분석 영상 수</span><span className="mr-v mono">{density.sampleCount ?? data.samples?.length ?? 0}개</span></div>
+    <div className="fade-in grid">
+      {/* 증식 활력 대표지표 */}
+      <div className={`card vitality-hero-${noticeLevel}`}>
+        <div className="card-head">
+          <div className="card-title"><Icon name="growth" />증식 활력 대표지표</div>
+          <Badge kind="accent" dot>완료</Badge>
         </div>
-        {density.bestFrameCount > 0 && (
-          <div className="card" style={{ marginTop: 18 }}>
-            <div className="card-head">
-              <div className="card-title"><Icon name="trend" />최대 프레임</div>
-              <span className="card-sub">frame {density.selectedFrameIndex ?? '-'}</span>
-            </div>
-            <LineChart data={[0, density.averageFrameCount ?? 0, density.bestFrameCount, density.averageFrameCount ?? 0, density.bestFrameCount]} />
+        <div className="vitality-hero-body">
+          <div className="vitality-hero-top">
+            <Badge kind={noticeBadgeKind} dot>{notice?.label ?? '정상 관찰'}</Badge>
+            {vitality?.averageSpeedRatio != null && (
+              <div className="vitality-hero-ratio">
+                <span className="vhr-num tnum">{vitality.averageSpeedRatio.toFixed(2)}<em>x</em></span>
+                <span className="vhr-desc">먹이응애 기준 속도비</span>
+              </div>
+            )}
           </div>
-        )}
+          {notice?.message && (
+            <p className="vitality-hero-msg">{notice.message}</p>
+          )}
+        </div>
       </div>
 
-      <div className="grid" style={{ alignContent: 'start' }}>
-        <div className="card" style={{ background: 'var(--accent-soft)', borderColor: 'var(--accent-soft-2)' }}>
-          <div className="card-head"><div className="card-title"><Icon name="grid" />밀도 등급</div></div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14 }}>
-            <div className="stat-value tnum" style={{ fontSize: 44 }}>{perLiter}<small> 마리/L</small></div>
+      {/* 현재 count · 활력도 · 활동비율 */}
+      <div className="grid grid-3">
+        <div className="stat">
+          <div className="stat-label">현재 count</div>
+          <div className="stat-value tnum">
+            {density.estimatedCountPerMl.toLocaleString()}<small>마리/mL</small>
           </div>
-          <div className="grade-row" style={{ marginTop: 12 }}>
-            <Badge kind={gradeOf(level)} dot>{level}</Badge>
-            <span style={{ fontSize: 12.5, color: 'var(--text-2)' }}>1 mL 10마리 이상 기준</span>
-          </div>
+          <div className="stat-sub">최대 프레임 {density.bestFrameCount}마리</div>
         </div>
-
-        <div className="grid grid-2" style={{ gridTemplateColumns: '1fr 1fr' }}>
-          <div className="stat">
-            <div className="stat-label">최대 프레임</div>
-            <div className="stat-value tnum">{density.bestFrameCount}<small>마리</small></div>
-            <div className="stat-sub">{density.selectedFrameTimestampSeconds?.toFixed(1) ?? '-'}초 지점</div>
-          </div>
-          <div className="stat">
-            <div className="stat-label">샘플 프레임</div>
-            <div className="stat-value tnum">{density.sampledFrames ?? '-'}<small>개</small></div>
-            <div className="stat-sub">앞 {density.analysisWindowSeconds?.toFixed(1) ?? '10.0'}초 · 1초당 1프레임</div>
-          </div>
+        <div className="stat">
+          <div className="stat-label">현재 활력도</div>
+          <div className="stat-value tnum">{vitality?.score ?? '-'}<small>점</small></div>
+          <div className="stat-sub">0 ~ 100점 척도</div>
         </div>
+        <div className="stat">
+          <div className="stat-label">활동 개체 비율</div>
+          <div className="stat-value tnum">
+            {activeRatioPct != null ? <>{activeRatioPct}<small>%</small></> : '-'}
+          </div>
+          <div className="stat-sub">이동 감지 개체</div>
+        </div>
+      </div>
 
+      {/* 밀도 정보 · 활력도 세부 */}
+      <div className="grid grid-2">
         <div className="card">
-          <div className="card-head"><div className="card-title"><Icon name="pulse" />활력도 정보</div></div>
-          {notice && notice.level !== 'normal' && (
-            <div className={`vitality-notice vitality-notice-${notice.level}`}>
-              <strong>{notice.label}</strong>
-              <span>{notice.message}</span>
+          <div className="card-head">
+            <div className="card-title"><Icon name="grid" />밀도 정보</div>
+            <Badge kind={gradeOf(densityLevel)} dot>{densityLevel}</Badge>
+          </div>
+          <div className="metric-row"><span className="mr-k">L당 밀도</span><span className="mr-v mono">{perLiter} 마리/L</span></div>
+          <div className="metric-row"><span className="mr-k">평균 count</span><span className="mr-v mono">{density.averageFrameCount?.toFixed(1) ?? '-'} 마리</span></div>
+          <div className="metric-row"><span className="mr-k">분석 영상 수</span><span className="mr-v mono">{density.sampleCount ?? data.samples?.length ?? 0}개</span></div>
+          {(density.warnings?.length ?? 0) > 0 && (
+            <div style={{ marginTop: 10, color: 'var(--warning, #b7791f)', fontSize: 13 }}>
+              {density.warnings?.join(' · ')}
             </div>
           )}
-          <div className="metric-row"><span className="mr-k">평균 활력도</span><span className="mr-v mono">{vitality?.score ?? '-'}점</span></div>
+        </div>
+        <div className="card">
+          <div className="card-head">
+            <div className="card-title"><Icon name="pulse" />활력도 세부</div>
+          </div>
           {activeRatioPct != null && (
             <div className="metric-row"><span className="mr-k">활동 개체 비율</span><span className="mr-v mono">{activeRatioPct}%</span></div>
           )}
@@ -150,57 +158,14 @@ function DensityResultView({ data, onReset }: DensityResultViewProps) {
           <div className="metric-row"><span className="mr-k">확정 track</span><span className="mr-v mono">{vitality?.confirmedTracks ?? '-'}개</span></div>
           <div className="metric-row"><span className="mr-k">이동 track</span><span className="mr-v mono">{vitality?.movingTracks ?? '-'}개</span></div>
         </div>
-
-        {representativeTrack && (
-          <div className="card">
-            <div className="card-head"><div className="card-title"><Icon name="pulse" />대표 track</div></div>
-            <div className="metric-row"><span className="mr-k">샘플</span><span className="mr-v mono">{representativeTrack.sampleIndex}. {representativeTrack.originalName}</span></div>
-            <div className="metric-row"><span className="mr-k">track ID</span><span className="mr-v mono">{representativeTrack.trackId}</span></div>
-            <div className="metric-row"><span className="mr-k">track 활력도</span><span className="mr-v mono">{representativeTrack.vitalityScore?.toFixed(1) ?? '-'}점</span></div>
-            <div className="metric-row"><span className="mr-k">관측 프레임</span><span className="mr-v mono">{representativeTrack.framesSeen ?? '-'}개</span></div>
-            <div className="metric-row"><span className="mr-k">이동거리</span><span className="mr-v mono">{representativeTrack.totalDistancePx?.toFixed(1) ?? '-'}px</span></div>
-            <div className="metric-row"><span className="mr-k">상대 속도</span><span className="mr-v mono">{representativeTrack.meanSpeedRatio?.toFixed(2) ?? '-'}x</span></div>
-            <div className="metric-row"><span className="mr-k">이동 비율</span><span className="mr-v mono">{representativeTrack.movingRatio != null ? `${Math.round(representativeTrack.movingRatio * 100)}%` : '-'}</span></div>
-          </div>
-        )}
-
-        <div className="card">
-          <div className="card-head"><div className="card-title"><Icon name="info" />품질 정보</div></div>
-          <div className="metric-row"><span className="mr-k">선명도</span><span className="mr-v mono">{quality?.sharpness.toFixed(1) ?? '-'}</span></div>
-          <div className="metric-row"><span className="mr-k">밝기</span><span className="mr-v mono">{quality?.brightness.toFixed(1) ?? '-'}</span></div>
-          {(density.warnings?.length ?? 0) > 0 && (
-            <div style={{ marginTop: 10, color: 'var(--warning, #b7791f)', fontSize: 13 }}>
-              {density.warnings?.join(' · ')}
-            </div>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-ghost btn-block" onClick={onReset}><Icon name="upload" />새 영상 분석</button>
-        </div>
       </div>
 
-      {data.samples && data.samples.length > 0 && (
-        <div className="card" style={{ gridColumn: '1 / -1', marginTop: 18 }}>
-          <div className="card-head">
-            <div className="card-title"><Icon name="layers" />샘플 분석 결과</div>
-            <span className="card-sub">{data.samples.length}개 영상</span>
-          </div>
-          <div className="grid" style={{ gap: 8, maxHeight: 460, overflow: 'auto' }}>
-            {data.samples.map((sample) => (
-              <div className="metric-row" key={sample.sampleIndex}>
-                <span className="mr-k">{sample.sampleIndex}. {sample.originalName}</span>
-                <span className="mr-v mono">
-                  count {sample.estimatedCountPerMl ?? '-'} / mL · density {sample.densityPerLiter?.toLocaleString() ?? '-'} / L · vitality {sample.vitalityScore?.toFixed(1) ?? '-'}점 · speed {sample.averageSpeedRatio?.toFixed(2) ?? '-'}x · tracks {sample.confirmedTracks ?? 0}/{sample.movingTracks ?? 0}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button className="btn btn-ghost btn-block" onClick={onReset}><Icon name="upload" />새 영상 분석</button>
+      </div>
 
       {vitality?.trackingVideoUrl && (
-        <div className="card" style={{ gridColumn: '1 / -1', marginTop: 18 }}>
+        <div className="card" style={{ marginTop: 18 }}>
           <div className="card-head">
             <div className="card-title"><Icon name="video" />트래킹 영상</div>
             <span className="card-sub">1번 영상 기준</span>
@@ -234,8 +199,16 @@ export function DensityPage({ boxes, selectedBoxId, onBoxChange, onBoxCreate }: 
   const [progress, setProgress] = useState<DensityProgress | null>(null);
   const [uploadPercent, setUploadPercent] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [vidDrag, setVidDrag] = useState(false);
   const pollRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const vidDropHandlers = {
+    onClick: () => fileInputRef.current?.click(),
+    onDragOver: (e: React.DragEvent) => { e.preventDefault(); setVidDrag(true); },
+    onDragLeave: () => setVidDrag(false),
+    onDrop: (e: React.DragEvent) => { e.preventDefault(); setVidDrag(false); if (e.dataTransfer.files) handlePick(e.dataTransfer.files); },
+  };
 
   const handlePick = (picked: FileList | File[]) => {
     const selected = Array.from(picked);
@@ -349,23 +322,25 @@ export function DensityPage({ boxes, selectedBoxId, onBoxChange, onBoxCreate }: 
 
       {phase === 'idle' && (
         <div className="grid grid-2">
-          <div className="card">
-            <div className="card-head"><div className="card-title"><Icon name="upload" />영상 업로드</div></div>
+          <div
+            className={`vid-drop${vidDrag ? ' drag' : ''}`}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === 'Enter' && fileInputRef.current?.click()}
+            {...vidDropHandlers}
+          >
             <input
               ref={fileInputRef}
               type="file"
               accept="video/*"
               multiple
-              onChange={(event) => {
-                if (event.target.files) handlePick(event.target.files);
-              }}
-              style={{ width: '100%', padding: '12px 0' }}
+              className="upload-input"
+              onChange={(e) => { if (e.target.files) handlePick(e.target.files); }}
             />
-            <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
-              1개 이상의 1 mL 배지에서 촬영한 10초 이상 영상을 선택하세요.
-              같은 영상으로 밀도와 활력도를 함께 계산합니다.
-              10초를 초과하는 영상은 앞 10초 구간만 분석합니다.
-            </div>
+            <div className="up-ic"><Icon name="video" /></div>
+            <div className="up-title">영상을 끌어다 놓거나 클릭하여 업로드</div>
+            <div className="up-desc">1 mL 배지에서 촬영한 10초 이상 영상 · 여러 개 동시 선택 가능</div>
+            <div className="up-formats">video/* · 최대 500 MB / 파일</div>
           </div>
           <div className="card">
             <div className="card-head"><div className="card-title"><Icon name="info" />측정 단계</div></div>
@@ -381,20 +356,25 @@ export function DensityPage({ boxes, selectedBoxId, onBoxChange, onBoxCreate }: 
           <div className="card">
             <div className="card-head">
               <div className="card-title"><Icon name="video" />선택된 영상</div>
-              <Badge kind="accent">
-                {files.length}개
-              </Badge>
+              <Badge kind="accent">{files.length}개</Badge>
             </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="video/*"
-              multiple
-              onChange={(event) => {
-                if (event.target.files) handlePick(event.target.files);
-              }}
-              style={{ width: '100%', padding: '0 0 12px' }}
-            />
+            <div
+              className={`vid-drop-add${vidDrag ? ' drag' : ''}`}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && fileInputRef.current?.click()}
+              {...vidDropHandlers}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="video/*"
+                multiple
+                className="upload-input"
+                onChange={(e) => { if (e.target.files) handlePick(e.target.files); }}
+              />
+              <Icon name="plus" />영상 추가 · 끌어다 놓기 가능
+            </div>
             <div className="grid" style={{ gap: 8, maxHeight: 360, overflow: 'auto' }}>
               {files.map((file, index) => (
                 <FileChip

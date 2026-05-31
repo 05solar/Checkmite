@@ -4,6 +4,6 @@
 }
 .heat-cell {
   aspect-ratio: 1;
-  border-radius: 0;
+  border-radius: 3px;
   background: var(--surface-3);
 }

@@ -77,7 +77,7 @@ html, body {
   text-rendering: optimizeLegibility;
 }
 
-body { font-size: 15px; line-height: 1.5; }
+body { font-size: 16px; line-height: 1.5; }
 
 #root { min-height: 100vh; }
 
@@ -93,7 +93,7 @@ button { font-family: inherit; cursor: pointer; }
 .page-head { margin-bottom: 26px; }
 
 .page-eyebrow {
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--accent);
   letter-spacing: .02em;
@@ -104,7 +104,7 @@ button { font-family: inherit; cursor: pointer; }
 }
 .page-eyebrow .pe-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 .page-title { font-size: 27px; font-weight: 700; letter-spacing: -.025em; margin: 0; }
-.page-desc { color: var(--text-2); margin: 8px 0 0; max-width: 640px; font-size: 14.5px; }
+.page-desc { color: var(--text); margin: 8px 0 0; font-size: 16px; line-height: 1.6; }
 
 /* ---- 그리드 ---- */
 .grid { display: grid; gap: 18px; }
@@ -124,9 +124,9 @@ button { font-family: inherit; cursor: pointer; }
 }
 .card-pad-0 { padding: 0; overflow: hidden; }
 .card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; }
-.card-title { font-size: 14px; font-weight: 600; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; }
+.card-title { font-size: 15px; font-weight: 600; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; }
 .card-title svg { width: 16px; height: 16px; color: var(--text-3); }
-.card-sub { font-size: 12.5px; color: var(--text-3); }
+.card-sub { font-size: 13.5px; color: var(--text-3); }
 
 /* ---- 버튼 ---- */
 .btn {
@@ -134,9 +134,9 @@ button { font-family: inherit; cursor: pointer; }
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   padding: 11px 18px;
-  font-size: 14.5px;
+  font-size: 15.5px;
   font-weight: 600;
   border: 1px solid transparent;
   transition: all .15s;
@@ -150,8 +150,8 @@ button { font-family: inherit; cursor: pointer; }
 .btn-ghost { background: var(--surface); color: var(--text); border-color: var(--border); }
 .btn-ghost:hover { border-color: var(--border-strong); background: var(--surface-2); }
 .btn-block { width: 100%; }
-.btn-lg { padding: 13px 22px; font-size: 15px; }
-.btn-sm { padding: 6px 12px; font-size: 12.5px; border-radius: 0; }
+.btn-lg { padding: 13px 22px; font-size: 16px; }
+.btn-sm { padding: 6px 12px; font-size: 13.5px; border-radius: 6px; }
 
 /* ---- 통계 ---- */
 .stat {
@@ -160,17 +160,17 @@ button { font-family: inherit; cursor: pointer; }
   border-radius: var(--radius);
   padding: 18px;
 }
-.stat-label { font-size: 12.5px; color: var(--text-2); font-weight: 500; display: flex; align-items: center; gap: 7px; }
-.stat-label .sl-sw { width: 9px; height: 9px; border-radius: 0; }
+.stat-label { font-size: 13.5px; color: var(--text-2); font-weight: 500; display: flex; align-items: center; gap: 7px; }
+.stat-label .sl-sw { width: 9px; height: 9px; border-radius: 3px; }
 .stat-value { font-size: 32px; font-weight: 700; letter-spacing: -.03em; margin-top: 8px; line-height: 1; }
-.stat-value small { font-size: 15px; font-weight: 600; color: var(--text-3); margin-left: 3px; letter-spacing: 0; }
-.stat-sub { font-size: 12.5px; color: var(--text-3); margin-top: 7px; }
+.stat-value small { font-size: 16px; font-weight: 600; color: var(--text-3); margin-left: 3px; letter-spacing: 0; }
+.stat-sub { font-size: 13.5px; color: var(--text-3); margin-top: 7px; }
 
 /* ---- 메트릭 행 ---- */
 .metric-row { display: flex; align-items: baseline; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid var(--border); }
 .metric-row:last-child { border-bottom: none; }
-.metric-row .mr-k { font-size: 13px; color: var(--text-2); }
-.metric-row .mr-v { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.metric-row .mr-k { font-size: 14px; color: var(--text-2); }
+.metric-row .mr-v { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 /* ---- 힌트 ---- */
 .hint {
@@ -181,22 +181,22 @@ button { font-family: inherit; cursor: pointer; }
   border: 1px solid var(--accent-soft-2);
   border-radius: var(--radius);
   padding: 13px 15px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-2);
 }
 .hint svg { width: 17px; height: 17px; color: var(--accent); flex: none; margin-top: 1px; }
 
 /* ---- 비율 바 ---- */
-.ratio-bar { display: flex; height: 38px; border-radius: 0; overflow: hidden; border: 1px solid var(--border); }
-.ratio-seg { display: flex; align-items: center; padding: 0 12px; font-size: 13px; font-weight: 700; color: #fff; min-width: 0; transition: flex-basis .5s ease; }
+.ratio-bar { display: flex; height: 38px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+.ratio-seg { display: flex; align-items: center; padding: 0 12px; font-size: 14px; font-weight: 700; color: #fff; min-width: 0; transition: flex-basis .5s ease; }
 
 /* ---- 등급 ---- */
 .grade-row { display: flex; align-items: center; gap: 8px; }
 
 /* ---- 범례 ---- */
-.legend { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-2); }
+.legend { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 13.5px; color: var(--text-2); }
 .legend .lg-item { display: flex; align-items: center; gap: 7px; }
-.legend .lg-sw { width: 11px; height: 11px; border-radius: 0; }
+.legend .lg-sw { width: 11px; height: 11px; border-radius: 3px; }
 
 /* ---- 애니메이션 ---- */
 .fade-in { animation: fade .35s ease; }

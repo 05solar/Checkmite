@@ -20,10 +20,6 @@ function dateOnly(value: string) {
   return value.slice(0, 10);
 }
 
-function densityValue(value: number | undefined) {
-  return value === undefined || value === null ? '-' : value.toLocaleString();
-}
-
 function numberValue(value: number | undefined, digits = 0) {
   if (value === undefined || value === null) return '-';
   return value.toLocaleString(undefined, {
@@ -107,6 +103,7 @@ export function GrowthPage({
   const [deleteTarget, setDeleteTarget] = useState<CultureBox | null>(null);
   const [growth, setGrowth] = useState<GrowthResult | null>(null);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
+  const [expandedCard, setExpandedCard] = useState<'count' | 'vitality' | 'rate' | null>(null);
 
   useEffect(() => {
     if (!box?.id) return;
@@ -121,26 +118,18 @@ export function GrowthPage({
     });
   }, [box?.id]);
 
-  const countTrend = growth?.countTrend.map((d) => d.countValue) ?? [];
   const vitalityTrend = growth?.vitalityTrend.map((v) => v.score) ?? [];
   const analysisHistory = compactAnalysisHistory(measurements);
   const growthLabel = growth?.growthLabel ?? '유지 관찰';
   const growthBadge =
     growthLabel === '증식 활발' ? 'high' : growthLabel === '감소 추세' ? 'low' : 'mid';
-  const countShare = growth ? Math.abs(growth.countChangeRatePercent * growth.countWeight) : 0;
-  const vitalityShare = growth ? Math.abs(growth.vitalityChangeRatePercent * growth.vitalityWeight) : 0;
-  const totalShare = Math.max(countShare + vitalityShare, 1);
-  const countWeightWidth = `${Math.max((countShare / totalShare) * 100, growth ? 8 : 0)}%`;
-  const vitalityWeightWidth = `${Math.max((vitalityShare / totalShare) * 100, growth ? 8 : 0)}%`;
 
   return (
     <div className="page">
       <div className="page-head">
         <div className="page-eyebrow"><span className="pe-dot" />증식률 분석 · GROWTH</div>
         <h1 className="page-title">count · 활력도 기반 증식률 분석</h1>
-        <p className="page-desc">
-          배양 상자별 날짜 누적 count와 활력도 변화를 3:1 가중치로 반영해 기간별 증식 상태를 보여줍니다.
-        </p>
+        <p className="page-desc">사육 박스별 누적 count와 활력도 변화를 3:1 가중치로 반영해 기간별 증식 상태를 보여줍니다.</p>
       </div>
 
       <div className="grid grid-2 growth-admin">
@@ -166,90 +155,102 @@ export function GrowthPage({
         </div>
       </div>
 
-      <div className="grid grid-4">
-        <div className="stat">
-          <div className="stat-label">현재 count</div>
-          <div className="stat-value tnum">
-            {growth && growth.currentCount > 0 ? numberValue(growth.currentCount) : '-'}
-            <small>마리/mL</small>
+      <div className={`card growth-hero growth-hero-${growthBadge}`}>
+        <div className="card-head">
+          <div className="card-title"><Icon name="growth" />통합 증식률</div>
+          <span className="growth-hero-period">{growth ? `${growth.from} → ${growth.to} / ${growth.days}일` : ''}</span>
+        </div>
+        <div className={`growth-hero-label growth-hero-label-${growthBadge}`}>
+          {growthLabel}
+        </div>
+        <div className="growth-hero-formula">
+          <span>count 변화율 <strong>{growth?.countChangeRatePercent.toFixed(1) ?? '-'}%</strong> × 0.75</span>
+          <span className="ghf-sep">+</span>
+          <span>활력도 변화율 <strong>{growth?.vitalityChangeRatePercent.toFixed(1) ?? '-'}%</strong> × 0.25</span>
+          <span className="ghf-sep">=</span>
+          <strong className="ghf-result">{growth?.weightedGrowthRatePercent.toFixed(1) ?? '-'}</strong>
+          <div className="ghf-threshold">
+            <span className="ghf-thr-item ghf-thr-high">20 초과 → 증식 활발</span>
+            <span className="ghf-thr-sep">·</span>
+            <span className="ghf-thr-item ghf-thr-mid">−10 ~ 20 → 유지 관찰</span>
+            <span className="ghf-thr-sep">·</span>
+            <span className="ghf-thr-item ghf-thr-low">−10 미만 → 감소 추세</span>
           </div>
-          <div className="stat-sub">{growth?.to ?? 'count 측정 필요'}</div>
-        </div>
-        <div className="stat">
-          <div className="stat-label">count 변화율</div>
-          <div className="stat-value tnum">{growth?.countChangeRatePercent.toFixed(1) ?? 0}<small>%</small></div>
-          <div className="stat-sub">{growth ? `${growth.from} 대비` : 'count 기반'}</div>
-        </div>
-        <div className="stat">
-          <div className="stat-label">일 count 증식량</div>
-          <div className="stat-value tnum">{growth?.countGrowthPerDay.toFixed(2) ?? 0}<small>/일</small></div>
-          <div className="stat-sub">{growth ? `${growth.days}일 기준` : 'count 측정 필요'}</div>
-        </div>
-        <div className="stat">
-          <div className="stat-label">통합 증식률</div>
-          <div className="stat-value tnum">{growth?.weightedGrowthRatePercent.toFixed(1) ?? 0}<small>%</small></div>
-          <div className="stat-sub">count 75% · 활력도 25%</div>
         </div>
       </div>
 
-      <div className="grid grid-2 growth-main">
-        <div className="card">
-          <div className="card-head">
-            <div className="card-title"><Icon name="grid" />count 추이</div>
-            <span className="card-sub">latest {numberValue(growth?.currentCount)} / mL</span>
-          </div>
-          {countTrend.length > 1
-            ? <LineChart data={countTrend} xlabel="측정" />
-            : <div className="growth-empty">count 측정 데이터가 더 필요합니다.</div>}
-        </div>
+      <div className={`growth-sub${expandedCard ? ' growth-sub-has-expanded' : ' grid grid-3'}`}>
+        {(['count', 'vitality', 'rate'] as const).map((key) => {
+          const isExpanded = expandedCard === key;
+          const toggle = () => setExpandedCard(isExpanded ? null : key);
+          return (
+            <div
+              key={key}
+              className={`card growth-sub-card${isExpanded ? ' expanded' : ''}`}
+              role="button"
+              tabIndex={0}
+              onClick={toggle}
+              onKeyDown={(e) => e.key === 'Enter' && toggle()}
+            >
+              <div className="card-head">
+                <div className="card-title">
+                  {key === 'count'    && <><Icon name="grid"  />현재 카운트</>}
+                  {key === 'vitality' && <><Icon name="pulse" />현재 활력도 그래프</>}
+                  {key === 'rate'     && <><Icon name="trend" />변화율</>}
+                </div>
+                <span className="growth-expand-icon">
+                  {isExpanded ? <Icon name="x" /> : <Icon name="scan" />}
+                </span>
+              </div>
 
-        <div className="card">
-          <div className="card-head">
-            <div className="card-title"><Icon name="pulse" />활력도 추이</div>
-            <span className="card-sub">latest {growth?.vitalityTrend[growth.vitalityTrend.length - 1]?.score ?? '-'}점</span>
-          </div>
-          {vitalityTrend.length > 1
-            ? <LineChart data={vitalityTrend} xlabel="측정" />
-            : <div className="growth-empty">활력도 측정 데이터가 더 필요합니다.</div>}
-        </div>
+              {key === 'count' && (
+                <>
+                  <div className="stat-value tnum">
+                    {growth && growth.currentCount > 0 ? numberValue(growth.currentCount) : '-'}
+                    <small>마리/mL</small>
+                  </div>
+                  <div className="stat-sub">{growth?.to ?? '측정 필요'}</div>
+                  {isExpanded && (
+                    <div className="growth-sub-detail">
+                      <span>초기 {numberValue(growth?.firstCount)} 마리/mL</span>
+                      <span>증가량 +{numberValue(growth?.countChange)} 마리/mL</span>
+                    </div>
+                  )}
+                </>
+              )}
 
-        <div className="card growth-result-card">
-          <div className="card-head">
-            <div className="card-title"><Icon name="growth" />증식률 분석</div>
-            <Badge kind={growthBadge} dot>{growthLabel}</Badge>
-          </div>
-          <div className="growth-summary">
-            <div>
-              <span className="growth-summary-label">기준 count</span>
-              <strong className="tnum">{numberValue(growth?.firstCount)} → {numberValue(growth?.currentCount)}</strong>
-              <span>마리/mL</span>
+              {key === 'vitality' && (
+                <>
+                  {vitalityTrend.length > 1
+                    ? <LineChart data={vitalityTrend} xlabel="측정" height={isExpanded ? 300 : 180} />
+                    : <div className="growth-empty">활력도 측정 데이터가 더 필요합니다.</div>}
+                  {isExpanded && (
+                    <div className="growth-sub-detail">
+                      <span>초기 {growth?.firstVitalityScore.toFixed(1) ?? '-'}점</span>
+                      <span>현재 {growth?.latestVitalityScore.toFixed(1) ?? '-'}점</span>
+                      <span>평균 {growth?.averageVitalityScore.toFixed(1) ?? '-'}점</span>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {key === 'rate' && (
+                <>
+                  <div className="stat-value tnum">
+                    {growth ? growth.countChangeRatePercent.toFixed(1) : '-'}<small>%</small>
+                  </div>
+                  <div className="stat-sub">{growth ? `${growth.from} 대비 count 변화` : 'count 기반'}</div>
+                  {isExpanded && (
+                    <div className="growth-sub-detail">
+                      <span>활력도 변화율 {growth?.vitalityChangeRatePercent.toFixed(1) ?? '-'}%</span>
+                      <span>통합 증식률 {growth?.weightedGrowthRatePercent.toFixed(1) ?? '-'}%</span>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
-            <div>
-              <span className="growth-summary-label">기준 활력도</span>
-              <strong className="tnum">{numberValue(growth?.firstVitalityScore, 1)} → {numberValue(growth?.latestVitalityScore, 1)}</strong>
-              <span>점</span>
-            </div>
-            <div>
-              <span className="growth-summary-label">기간</span>
-              <strong className="tnum">{growth?.days ?? '-'}</strong>
-              <span>일</span>
-            </div>
-          </div>
-          <div className="growth-weight-bar" aria-label="증식률 가중 구성">
-            <span className="growth-weight-count" style={{ width: countWeightWidth }} />
-            <span className="growth-weight-vitality" style={{ width: vitalityWeightWidth }} />
-          </div>
-          <div className="growth-weight-legend">
-            <span><i className="growth-dot-count" />count 변화율 {growth?.countChangeRatePercent.toFixed(1) ?? '-'}% × 0.75</span>
-            <span><i className="growth-dot-vitality" />활력도 변화율 {growth?.vitalityChangeRatePercent.toFixed(1) ?? '-'}% × 0.25</span>
-          </div>
-          <div className="metric-row"><span className="mr-k">기준 기간</span><span className="mr-v">{growth ? `${growth.from} - ${growth.to}` : '-'}</span></div>
-          <div className="metric-row"><span className="mr-k">count 변화량</span><span className="mr-v mono">{numberValue(growth?.countChange)} / mL</span></div>
-          <div className="metric-row"><span className="mr-k">count 변화율</span><span className="mr-v mono">{growth?.countChangeRatePercent.toFixed(1) ?? '-'}%</span></div>
-          <div className="metric-row"><span className="mr-k">활력도 변화율</span><span className="mr-v mono">{growth?.vitalityChangeRatePercent.toFixed(1) ?? '-'}%</span></div>
-          <div className="metric-row"><span className="mr-k">로그 count 성장률</span><span className="mr-v mono">{growth?.logCountGrowthPerDay.toFixed(4) ?? '-'}</span></div>
-          <div className="metric-row"><span className="mr-k">보조 밀도</span><span className="mr-v mono">{densityValue(growth?.currentDensityPerLiter)} / L</span></div>
-        </div>
+          );
+        })}
       </div>
 
       <div className="card growth-table-card">

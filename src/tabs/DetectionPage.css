@@ -30,7 +30,7 @@
 .det-list-empty {
   padding: 12px 2px 2px;
   color: var(--text-3);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .det-error {
@@ -39,6 +39,7 @@
   gap: 9px;
   padding: 12px 14px;
   border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--border));
+  border-radius: 8px;
   background: color-mix(in srgb, var(--danger) 8%, var(--surface));
   color: var(--text);
   font-size: 13px;
@@ -69,10 +70,10 @@
 }
 .conf-row:last-child { border-bottom: none; }
 
-.conf-id  { font-family: var(--mono); font-size: 11.5px; color: var(--text-3); }
+.conf-id  { font-family: var(--mono); font-size: 12.5px; color: var(--text-3); }
 .conf-mid { min-width: 0; }
-.conf-name { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
-.conf-name .cn-sw { width: 8px; height: 8px; border-radius: 0; }
+.conf-name { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+.conf-name .cn-sw { width: 8px; height: 8px; border-radius: 3px; }
 .conf-meter { height: 5px; background: var(--surface-3); border-radius: 99px; margin-top: 7px; overflow: hidden; }
 .conf-meter > i { display: block; height: 100%; border-radius: 99px; }
-.conf-val { font-family: var(--mono); font-size: 13px; font-weight: 600; }
+.conf-val { font-family: var(--mono); font-size: 14px; font-weight: 600; }

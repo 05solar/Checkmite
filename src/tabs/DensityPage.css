@@ -1,3 +1,61 @@
+/* ---- 영상 드롭존 ---- */
+.vid-drop {
+  position: relative;
+  border: 2px dashed color-mix(in srgb, var(--accent) 40%, var(--border-strong));
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  padding: 48px 28px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .18s, background .18s;
+  user-select: none;
+}
+.vid-drop:hover,
+.vid-drop.drag {
+  border-color: var(--accent);
+  background: var(--accent-soft-2);
+}
+.vid-drop .up-ic {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 16px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  box-shadow: var(--shadow-sm);
+  transition: transform .18s;
+}
+.vid-drop.drag .up-ic { transform: translateY(-3px); }
+.vid-drop .up-ic svg { width: 24px; height: 24px; }
+
+.vid-drop-add {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 13px;
+  border: 2px dashed color-mix(in srgb, var(--accent) 40%, var(--border-strong));
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  transition: border-color .18s, background .18s;
+  user-select: none;
+}
+.vid-drop-add:hover,
+.vid-drop-add.drag {
+  border-color: var(--accent);
+  background: var(--accent-soft-2);
+}
+.vid-drop-add svg { width: 17px; height: 17px; }
+
 .vid-bar {
   display: flex;
   align-items: center;
@@ -10,7 +68,7 @@
 .vid-play {
   width: 34px;
   height: 34px;
-  border-radius: 0;
+  border-radius: 50%;
   border: none;
   background: var(--accent);
   color: var(--on-accent);
@@ -42,21 +100,94 @@
 
 .vid-time { font-family: var(--mono); font-size: 12px; color: var(--text-2); flex: none; }
 
+/* ---- 증식 활력 대표지표 Hero ---- */
+.vitality-hero-normal {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft-2);
+}
+
+.vitality-hero-caution {
+  border-color: #E7C66C;
+  background: #FFF8E1;
+}
+
+.vitality-hero-danger {
+  border-color: #E1A6A6;
+  background: #FFF1F1;
+}
+
+[data-theme="dark"] .vitality-hero-caution {
+  border-color: #725A1B;
+  background: #271F0F;
+}
+
+[data-theme="dark"] .vitality-hero-danger {
+  border-color: #7F2A2A;
+  background: #2A1717;
+}
+
+.vitality-hero-body {
+  display: grid;
+  gap: 12px;
+}
+
+.vitality-hero-top {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.vitality-hero-ratio {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vhr-num {
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -.03em;
+  line-height: 1;
+  color: var(--text);
+}
+
+.vhr-num em {
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 600;
+  color: var(--text-3);
+  margin-left: 2px;
+}
+
+.vhr-desc {
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.vitality-hero-msg {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-2);
+  line-height: 1.55;
+}
+
+/* ---- 인라인 Notice ---- */
 .vitality-notice {
   display: grid;
   gap: 4px;
   padding: 11px 12px;
   margin-bottom: 10px;
   border: 1px solid var(--border);
+  border-radius: 8px;
   background: var(--surface-2);
   color: var(--text-2);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.45;
 }
 
 .vitality-notice strong {
   color: var(--text);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 900;
 }
 
