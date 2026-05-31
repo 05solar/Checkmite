@@ -26,6 +26,29 @@ const createUploadedFile = async (file, boxId, client) => {
 
 const numberOrZero = (value) => Number(value ?? 0);
 const errorMessage = (error) => (error instanceof Error ? error.message : String(error));
+const vitalityNoticeForSpeedRatio = (ratio) => {
+  if (ratio === null || ratio === undefined || !Number.isFinite(Number(ratio))) return null;
+  const value = Number(ratio);
+  if (value <= 2) {
+    return {
+      level: 'danger',
+      label: '위험',
+      message: `천적응애 평균속도가 먹이응애 기준 ${value.toFixed(2)}x입니다. 2x 이하이면 활력 저하 위험으로 즉시 확인이 필요합니다.`,
+    };
+  }
+  if (value <= 3) {
+    return {
+      level: 'caution',
+      label: '주의',
+      message: `천적응애 평균속도가 먹이응애 기준 ${value.toFixed(2)}x입니다. 3x 이하이면 활력 저하 가능성을 관찰해야 합니다.`,
+    };
+  }
+  return {
+    level: 'normal',
+    label: '정상 관찰',
+    message: `천적응애 평균속도가 먹이응애 기준 ${value.toFixed(2)}x입니다.`,
+  };
+};
 
 const toRepresentativeTrack = (sample, track) => ({
   sampleIndex: sample.sampleIndex,
@@ -233,6 +256,10 @@ export const analysisService = {
       .map((result) => result.vitality.averageSpeedMmPerSec)
       .filter((value) => value !== undefined && value !== null)
       .map(Number);
+    const averageSpeedRatios = sampleResults
+      .map((result) => result.vitality.averageSpeedRatio)
+      .filter((value) => value !== undefined && value !== null)
+      .map(Number);
     const averageVitalityScore = vitalityScores.reduce((sum, value) => sum + value, 0) / sampleResults.length;
     const averageActiveRatio = activeRatios.length
       ? activeRatios.reduce((sum, value) => sum + value, 0) / activeRatios.length
@@ -240,10 +267,14 @@ export const analysisService = {
     const averageSpeedMmPerSec = averageSpeeds.length
       ? averageSpeeds.reduce((sum, value) => sum + value, 0) / averageSpeeds.length
       : null;
+    const averageSpeedRatio = averageSpeedRatios.length
+      ? averageSpeedRatios.reduce((sum, value) => sum + value, 0) / averageSpeedRatios.length
+      : null;
     const confirmedTracks = sampleResults.reduce((sum, result) => sum + Number(result.vitality.confirmedTracks ?? 0), 0);
     const movingTracks = sampleResults.reduce((sum, result) => sum + Number(result.vitality.movingTracks ?? 0), 0);
     const representativeTrack = selectRepresentativeTrack(sampleResults.slice(0, 1));
     const trackingVideoUrl = sampleResults[0]?.vitality.trackingVideoUrl ?? null;
+    const vitalityNotice = vitalityNoticeForSpeedRatio(averageSpeedRatio);
     const modelResult = {
       sampleCount: sampleResults.length,
       sampleResults,
@@ -273,6 +304,8 @@ export const analysisService = {
       vitalityScore: averageVitalityScore,
       activeRatio: averageActiveRatio,
       averageSpeedMmPerSec,
+      averageSpeedRatio,
+      vitalityNotice,
       confirmedTracks,
       movingTracks,
       representativeTrack,
@@ -397,6 +430,7 @@ export const analysisService = {
           activeRatio: modelResult.activeRatio,
           averageSpeedMmPerSec: modelResult.averageSpeedMmPerSec,
           averageSpeedRatio: modelResult.averageSpeedRatio,
+          notice: modelResult.vitalityNotice,
           confirmedTracks: modelResult.confirmedTracks,
           movingTracks: modelResult.movingTracks,
           representativeTrack: modelResult.representativeTrack,
@@ -415,6 +449,7 @@ export const analysisService = {
           vitalityScore: Number(sample.vitality.vitalityScore ?? sample.vitality.score ?? 0),
           activeRatio: sample.vitality.activeRatio,
           averageSpeedMmPerSec: sample.vitality.averageSpeedMmPerSec,
+          averageSpeedRatio: sample.vitality.averageSpeedRatio,
           confirmedTracks: sample.vitality.confirmedTracks,
           movingTracks: sample.vitality.movingTracks,
         })),

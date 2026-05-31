@@ -32,6 +32,70 @@ function numberValue(value: number | undefined, digits = 0) {
   });
 }
 
+type AnalysisHistory = {
+  key: string;
+  measuredAt: string;
+  types: Set<Measurement['type']>;
+  countValue?: number;
+  detectionCount?: number;
+  densityCount?: number;
+  densityPerLiter?: number;
+  vitalityScore?: number;
+  activeRatio?: number;
+};
+
+const MERGE_WINDOW_MS = 5 * 60 * 1000;
+
+function compactAnalysisHistory(measurements: Measurement[]) {
+  const sorted = measurements
+    .slice()
+    .sort((a, b) => new Date(a.measuredAt).getTime() - new Date(b.measuredAt).getTime());
+
+  return sorted.reduce<AnalysisHistory[]>((groups, item) => {
+    const measuredAtMs = new Date(item.measuredAt).getTime();
+    const latest = groups[groups.length - 1];
+    const latestMs = latest ? new Date(latest.measuredAt).getTime() : 0;
+    const sameAnalysis = latest && Math.abs(measuredAtMs - latestMs) <= MERGE_WINDOW_MS;
+    const group = sameAnalysis
+      ? latest
+      : {
+          key: `${item.measuredAt}-${item.id}`,
+          measuredAt: item.measuredAt,
+          types: new Set<Measurement['type']>(),
+        };
+
+    if (!sameAnalysis) groups.push(group);
+
+    group.types.add(item.type);
+    if (measuredAtMs < new Date(group.measuredAt).getTime()) {
+      group.measuredAt = item.measuredAt;
+    }
+    if (item.type === 'detection') {
+      group.detectionCount = item.countValue;
+    }
+    if (item.type === 'density') {
+      group.densityCount = item.countValue;
+      group.densityPerLiter = item.densityPerLiter;
+    }
+    if (item.type === 'vitality') {
+      group.vitalityScore = item.vitalityScore;
+      group.activeRatio = item.activeRatio;
+    }
+    group.countValue = group.densityCount ?? group.detectionCount ?? group.countValue;
+
+    return groups;
+  }, []);
+}
+
+function historyTypeLabel(types: Set<Measurement['type']>) {
+  if (types.has('density') && types.has('vitality')) return '통합 분석';
+  if (types.has('density') && types.has('detection')) return '탐지·밀도';
+  if (types.has('detection')) return '객체 탐지';
+  if (types.has('density')) return '밀도 분석';
+  if (types.has('vitality')) return '활력도';
+  return '분석';
+}
+
 export function GrowthPage({
   boxes,
   selectedBoxId,
@@ -59,9 +123,15 @@ export function GrowthPage({
 
   const countTrend = growth?.countTrend.map((d) => d.countValue) ?? [];
   const vitalityTrend = growth?.vitalityTrend.map((v) => v.score) ?? [];
+  const analysisHistory = compactAnalysisHistory(measurements);
   const growthLabel = growth?.growthLabel ?? '유지 관찰';
   const growthBadge =
     growthLabel === '증식 활발' ? 'high' : growthLabel === '감소 추세' ? 'low' : 'mid';
+  const countShare = growth ? Math.abs(growth.countChangeRatePercent * growth.countWeight) : 0;
+  const vitalityShare = growth ? Math.abs(growth.vitalityChangeRatePercent * growth.vitalityWeight) : 0;
+  const totalShare = Math.max(countShare + vitalityShare, 1);
+  const countWeightWidth = `${Math.max((countShare / totalShare) * 100, growth ? 8 : 0)}%`;
+  const vitalityWeightWidth = `${Math.max((vitalityShare / totalShare) * 100, growth ? 8 : 0)}%`;
 
   return (
     <div className="page">
@@ -148,9 +218,30 @@ export function GrowthPage({
             <div className="card-title"><Icon name="growth" />증식률 분석</div>
             <Badge kind={growthBadge} dot>{growthLabel}</Badge>
           </div>
-          <div className="growth-formula">
-            <span>growth_rate_per_day = (count_day_t - count_day_0) / days</span>
-            <span>weighted_growth = count_change_rate * 0.75 + vitality_change_rate * 0.25</span>
+          <div className="growth-summary">
+            <div>
+              <span className="growth-summary-label">기준 count</span>
+              <strong className="tnum">{numberValue(growth?.firstCount)} → {numberValue(growth?.currentCount)}</strong>
+              <span>마리/mL</span>
+            </div>
+            <div>
+              <span className="growth-summary-label">기준 활력도</span>
+              <strong className="tnum">{numberValue(growth?.firstVitalityScore, 1)} → {numberValue(growth?.latestVitalityScore, 1)}</strong>
+              <span>점</span>
+            </div>
+            <div>
+              <span className="growth-summary-label">기간</span>
+              <strong className="tnum">{growth?.days ?? '-'}</strong>
+              <span>일</span>
+            </div>
+          </div>
+          <div className="growth-weight-bar" aria-label="증식률 가중 구성">
+            <span className="growth-weight-count" style={{ width: countWeightWidth }} />
+            <span className="growth-weight-vitality" style={{ width: vitalityWeightWidth }} />
+          </div>
+          <div className="growth-weight-legend">
+            <span><i className="growth-dot-count" />count 변화율 {growth?.countChangeRatePercent.toFixed(1) ?? '-'}% × 0.75</span>
+            <span><i className="growth-dot-vitality" />활력도 변화율 {growth?.vitalityChangeRatePercent.toFixed(1) ?? '-'}% × 0.25</span>
           </div>
           <div className="metric-row"><span className="mr-k">기준 기간</span><span className="mr-v">{growth ? `${growth.from} - ${growth.to}` : '-'}</span></div>
           <div className="metric-row"><span className="mr-k">count 변화량</span><span className="mr-v mono">{numberValue(growth?.countChange)} / mL</span></div>
@@ -163,30 +254,30 @@ export function GrowthPage({
 
       <div className="card growth-table-card">
         <div className="card-head">
-          <div className="card-title"><Icon name="layers" />측정 이력</div>
-          <span className="card-sub">밀도·활력도 결과</span>
+          <div className="card-title"><Icon name="layers" />분석 이력</div>
+          <span className="card-sub">같은 영상/시간대의 탐지·밀도·활력도를 한 회차로 표시</span>
         </div>
         <div className="growth-table">
           <div className="growth-row growth-row-head">
             <span>날짜</span>
-            <span>유형</span>
+            <span>분석</span>
             <span>count</span>
             <span>밀도(마리/L)</span>
             <span>활력도</span>
           </div>
-          {measurements.length === 0 && (
+          {analysisHistory.length === 0 && (
             <div className="growth-empty" style={{ padding: '20px 0' }}>측정 이력이 없습니다.</div>
           )}
-          {measurements
-            .slice()
-            .sort((a, b) => new Date(a.measuredAt).getTime() - new Date(b.measuredAt).getTime())
+          {analysisHistory
             .map((item) => (
-              <div className="growth-row" key={item.id}>
+              <div className="growth-row" key={item.key}>
                 <span>{dateOnly(item.measuredAt)}</span>
-                <span>{item.type}</span>
+                <span>
+                  <Badge kind={item.types.has('density') ? 'high' : 'neutral'}>{historyTypeLabel(item.types)}</Badge>
+                </span>
                 <span className="mono">{item.countValue?.toLocaleString() ?? '-'}</span>
                 <span className="mono">{item.densityPerLiter?.toLocaleString() ?? '-'}</span>
-                <span className="mono">{item.vitalityScore ?? '-'}</span>
+                <span className="mono">{item.vitalityScore?.toFixed(1) ?? '-'}</span>
               </div>
             ))}
         </div>
