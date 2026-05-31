@@ -337,7 +337,7 @@ export const swaggerSpec = {
     '/analysis/density': {
       post: {
         tags: ['분석'],
-        summary: '통합 분석 (서로 다른 1 mL 배지 영상 20개로 밀도와 활력도 산출)',
+        summary: '통합 분석 (1개 이상의 1 mL 배지 영상으로 밀도와 활력도 산출)',
         requestBody: {
           required: true,
           content: {
@@ -350,10 +350,9 @@ export const swaggerSpec = {
                   measuredAt: { type: 'string', format: 'date-time' },
                   files: {
                     type: 'array',
-                    minItems: 20,
-                    maxItems: 20,
+                    minItems: 1,
                     items: { type: 'string', format: 'binary' },
-                    description: '서로 다른 1 mL 배지에서 촬영한 10초 이상 영상 20개. 같은 영상으로 밀도와 활력도를 함께 산출한다.',
+                    description: '1개 이상의 1 mL 배지에서 촬영한 10초 이상 영상. 10초를 초과하는 영상은 앞 10초 구간만 분석한다.',
                   },
                 },
               },

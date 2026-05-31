@@ -39,6 +39,7 @@ export interface DensityResult {
     sampleCount?: number;
     sampledFrames?: number;
     videoDurationSeconds?: number;
+    analysisWindowSeconds?: number;
     selectedFrameIndex?: number;
     selectedFrameTimestampSeconds?: number;
     selectedFrameQuality?: {
@@ -54,6 +55,7 @@ export interface DensityResult {
     score: number;
     activeRatio?: number | null;
     averageSpeedMmPerSec?: number | null;
+    averageSpeedRatio?: number | null;
     trend: number[];
     sampleCount?: number;
     confirmedTracks?: number;
@@ -70,6 +72,7 @@ export interface DensityResult {
       totalDistanceMm?: number;
       meanSpeedPxPerSec?: number;
       meanSpeedMmPerSec?: number;
+      meanSpeedRatio?: number;
       movingRatio?: number;
       vitalityScore?: number;
       visibilityRatio?: number;

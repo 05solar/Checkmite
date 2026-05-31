@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from threading import Lock
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
@@ -27,14 +28,19 @@ DEFAULT_NMS_IOU = float(os.getenv("CHECKMITE_NMS_IOU", "0.3"))
 DEFAULT_VITALITY_TARGET_CLASS = os.getenv("CHECKMITE_VITALITY_TARGET_CLASS", "predator")
 DEFAULT_VITALITY_IMGSZ = int(os.getenv("CHECKMITE_VITALITY_IMGSZ", "1280"))
 DEFAULT_VITALITY_PX_PER_MM = float(os.getenv("CHECKMITE_VITALITY_PX_PER_MM", "1500"))
-DEFAULT_VITALITY_REFERENCE_SPEED_MM_SEC = float(os.getenv("CHECKMITE_VITALITY_REFERENCE_SPEED_MM_SEC", "0.15"))
+DEFAULT_VITALITY_REFERENCE_SPEED_MM_SEC = float(os.getenv("CHECKMITE_VITALITY_REFERENCE_SPEED_MM_SEC", "0.025"))
 DEFAULT_VITALITY_MIN_TRACK_FRAMES = int(os.getenv("CHECKMITE_VITALITY_MIN_TRACK_FRAMES", "3"))
 DEFAULT_VITALITY_MOTION_THRESHOLD_PX = float(os.getenv("CHECKMITE_VITALITY_MOTION_THRESHOLD_PX", "2.0"))
-DEFAULT_VITALITY_MAX_FRAMES = int(os.getenv("CHECKMITE_VITALITY_MAX_FRAMES", "0"))
+DEFAULT_VITALITY_MAX_FRAMES = int(os.getenv("CHECKMITE_VITALITY_MAX_FRAMES", "80"))
+DEFAULT_VITALITY_NORMAL_SPEED_RATIO = float(os.getenv("CHECKMITE_VITALITY_NORMAL_SPEED_RATIO", "3.0"))
+DEFAULT_VITALITY_NORMAL_SPEED_SCORE = float(os.getenv("CHECKMITE_VITALITY_NORMAL_SPEED_SCORE", "0.60"))
+DEFAULT_VITALITY_FAST_SPEED_RATIO = float(os.getenv("CHECKMITE_VITALITY_FAST_SPEED_RATIO", "6.0"))
+DEFAULT_VITALITY_FAST_SPEED_SCORE = float(os.getenv("CHECKMITE_VITALITY_FAST_SPEED_SCORE", "0.92"))
 DEFAULT_DENSITY_TARGET_CLASS = os.getenv("CHECKMITE_DENSITY_TARGET_CLASS", "predator")
 DEFAULT_DENSITY_FRAME_INTERVAL_SECONDS = float(os.getenv("CHECKMITE_DENSITY_FRAME_INTERVAL_SECONDS", "1"))
 DEFAULT_DENSITY_COUNT_MULTIPLIER = float(os.getenv("CHECKMITE_DENSITY_COUNT_MULTIPLIER", "15"))
 DEFAULT_DENSITY_MIN_VIDEO_SECONDS = float(os.getenv("CHECKMITE_DENSITY_MIN_VIDEO_SECONDS", "10"))
+DEFAULT_ANALYSIS_WINDOW_SECONDS = float(os.getenv("CHECKMITE_ANALYSIS_WINDOW_SECONDS", "10"))
 DEFAULT_DENSITY_MAX_FRAMES = int(os.getenv("CHECKMITE_DENSITY_MAX_FRAMES", "0"))
 DEFAULT_DENSITY_MIN_SHARPNESS = float(os.getenv("CHECKMITE_DENSITY_MIN_SHARPNESS", "50"))
 DEFAULT_DENSITY_MIN_BRIGHTNESS = float(os.getenv("CHECKMITE_DENSITY_MIN_BRIGHTNESS", "40"))
@@ -54,6 +60,7 @@ app.add_middleware(
 
 _model: YOLO | None = None
 _vitality_model: YOLO | None = None
+_inference_lock = Lock()
 
 
 class VitalityRequest(BaseModel):
@@ -239,7 +246,10 @@ def analyze_density_video(
         )
 
     sample_stride = max(1, int(round(fps * frame_interval_seconds)))
-    frame_indices = list(range(0, frame_total, sample_stride))
+    analysis_frame_total = frame_total
+    if DEFAULT_ANALYSIS_WINDOW_SECONDS > 0:
+        analysis_frame_total = min(frame_total, max(1, int(round(fps * DEFAULT_ANALYSIS_WINDOW_SECONDS))))
+    frame_indices = list(range(0, analysis_frame_total, sample_stride))
     if max_frames:
         frame_indices = frame_indices[:max_frames]
 
@@ -287,9 +297,9 @@ def analyze_density_video(
         key=lambda row: (row["countValue"], row["quality"]["quality_score"], -row["frameIndex"]),
     )
     best_frame_count = int(selected["countValue"])
-    estimated_count_per_ml = int(round(best_frame_count * count_multiplier))
-    density_per_liter = estimated_count_per_ml * 1000
     average_frame_count = sum(row["countValue"] for row in frame_rows) / len(frame_rows)
+    estimated_count_per_ml = int(round(average_frame_count * count_multiplier))
+    density_per_liter = estimated_count_per_ml * 1000
 
     return {
         "countValue": estimated_count_per_ml,
@@ -299,6 +309,8 @@ def analyze_density_video(
         "averageFrameCount": round(average_frame_count, 3),
         "sampledFrames": len(frame_rows),
         "videoDurationSeconds": round(duration_seconds, 3),
+        "analysisWindowSeconds": round(min(duration_seconds, DEFAULT_ANALYSIS_WINDOW_SECONDS), 3)
+        if DEFAULT_ANALYSIS_WINDOW_SECONDS > 0 else round(duration_seconds, 3),
         "fps": round(fps, 3),
         "targetClass": target_class,
         "countMultiplier": count_multiplier,
@@ -329,15 +341,20 @@ def analyze_vitality_video(
     fps = capture.get(cv2.CAP_PROP_FPS) or 10.0
     frame_width = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
     frame_height = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+    analysis_frame_limit = 0
+    if DEFAULT_ANALYSIS_WINDOW_SECONDS > 0:
+        analysis_frame_limit = max(1, int(round(fps * DEFAULT_ANALYSIS_WINDOW_SECONDS)))
+    if max_frames:
+        analysis_frame_limit = min(analysis_frame_limit, max_frames) if analysis_frame_limit else max_frames
     writer = None
     if render_tracking_video:
         if not tracking_video_path:
-            tracking_video_path = video_path.with_name(f"{video_path.stem}-tracking.mp4")
+            tracking_video_path = video_path.with_name(f"{video_path.stem}-tracking.webm")
         tracking_video_path.parent.mkdir(parents=True, exist_ok=True)
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        fourcc = cv2.VideoWriter_fourcc(*"VP80")
         writer = cv2.VideoWriter(str(tracking_video_path), fourcc, fps, (frame_width, frame_height))
         if not writer.isOpened():
-            writer = None
+            raise HTTPException(status_code=500, detail="Could not create tracking video")
 
     tracker = TrackingService(motion_threshold_px=DEFAULT_VITALITY_MOTION_THRESHOLD_PX)
     vitality = VitalityService(
@@ -346,6 +363,10 @@ def analyze_vitality_video(
         px_per_mm=DEFAULT_VITALITY_PX_PER_MM,
         reference_speed_mm_sec=DEFAULT_VITALITY_REFERENCE_SPEED_MM_SEC,
         target_class_name=target_class,
+        normal_speed_ratio=DEFAULT_VITALITY_NORMAL_SPEED_RATIO,
+        normal_speed_score=DEFAULT_VITALITY_NORMAL_SPEED_SCORE,
+        fast_speed_ratio=DEFAULT_VITALITY_FAST_SPEED_RATIO,
+        fast_speed_score=DEFAULT_VITALITY_FAST_SPEED_SCORE,
     )
 
     frame_idx = 0
@@ -390,7 +411,7 @@ def analyze_vitality_video(
                 writer.write(frame)
             frame_idx += 1
 
-            if max_frames and frame_idx >= max_frames:
+            if analysis_frame_limit and frame_idx >= analysis_frame_limit:
                 break
     finally:
         capture.release()
@@ -403,6 +424,7 @@ def analyze_vitality_video(
         "score": aggregate["vitality_score"],
         "activeRatio": aggregate["moving_ratio"],
         "averageSpeedMmPerSec": aggregate["mean_speed_mm_sec"],
+        "averageSpeedRatio": aggregate["mean_speed_ratio"],
         "activityIndex": aggregate["activity_index"],
         "speedScore": aggregate["speed_score"],
         "observationStability": aggregate["observation_stability"],
@@ -543,6 +565,7 @@ def model_info() -> dict[str, Any]:
             "frame_interval_seconds": DEFAULT_DENSITY_FRAME_INTERVAL_SECONDS,
             "count_multiplier": DEFAULT_DENSITY_COUNT_MULTIPLIER,
             "min_video_seconds": DEFAULT_DENSITY_MIN_VIDEO_SECONDS,
+            "analysis_window_seconds": DEFAULT_ANALYSIS_WINDOW_SECONDS,
             "min_sharpness": DEFAULT_DENSITY_MIN_SHARPNESS,
             "brightness_range": [DEFAULT_DENSITY_MIN_BRIGHTNESS, DEFAULT_DENSITY_MAX_BRIGHTNESS],
         },
@@ -551,6 +574,13 @@ def model_info() -> dict[str, Any]:
             "weights": str(VITALITY_MODEL_PATH.relative_to(ROOT_DIR)) if VITALITY_MODEL_PATH.exists() else str(MODEL_PATH.relative_to(ROOT_DIR)),
             "target_class": DEFAULT_VITALITY_TARGET_CLASS,
             "image_size": DEFAULT_VITALITY_IMGSZ,
+            "max_frames": DEFAULT_VITALITY_MAX_FRAMES,
+            "analysis_window_seconds": DEFAULT_ANALYSIS_WINDOW_SECONDS,
+            "prey_reference_speed_mm_sec": DEFAULT_VITALITY_REFERENCE_SPEED_MM_SEC,
+            "normal_speed_ratio": DEFAULT_VITALITY_NORMAL_SPEED_RATIO,
+            "normal_speed_score": DEFAULT_VITALITY_NORMAL_SPEED_SCORE,
+            "fast_speed_ratio": DEFAULT_VITALITY_FAST_SPEED_RATIO,
+            "fast_speed_score": DEFAULT_VITALITY_FAST_SPEED_SCORE,
             "confidence": DEFAULT_CONF,
         },
         "classes": CLASS_NAMES,
@@ -596,16 +626,17 @@ async def predict_image(
         if not 0 <= nms <= 1:
             raise HTTPException(status_code=400, detail="nms must be between 0 and 1")
 
-        model = get_model()
-        detections, image_info = predict_tiled(
-            model=model,
-            image_path=tmp_path,
-            conf=conf,
-            imgsz=imgsz,
-            tile_size=tile_size,
-            overlap=overlap,
-            nms_iou=nms,
-        )
+        with _inference_lock:
+            model = get_model()
+            detections, image_info = predict_tiled(
+                model=model,
+                image_path=tmp_path,
+                conf=conf,
+                imgsz=imgsz,
+                tile_size=tile_size,
+                overlap=overlap,
+                nms_iou=nms,
+            )
         counts = {name: 0 for name in CLASS_NAMES.values()}
         for det in detections:
             counts[det["class_name"]] = counts.get(det["class_name"], 0) + 1
@@ -631,37 +662,39 @@ async def predict_image(
 
 
 @app.post("/infer/vitality")
-async def infer_vitality(payload: VitalityRequest) -> dict[str, Any]:
+def infer_vitality(payload: VitalityRequest) -> dict[str, Any]:
     video_path = Path(payload.filePath)
     if not video_path.exists():
         raise HTTPException(status_code=400, detail=f"Video file not found: {video_path}")
 
-    model = get_vitality_model()
-    return analyze_vitality_video(
-        model=model,
-        video_path=video_path,
-        conf=DEFAULT_CONF,
-        imgsz=DEFAULT_VITALITY_IMGSZ,
-        target_class=payload.targetClass or DEFAULT_VITALITY_TARGET_CLASS,
-        max_frames=payload.maxFrames or DEFAULT_VITALITY_MAX_FRAMES,
-        render_tracking_video=bool(payload.renderTrackingVideo),
-        tracking_video_path=Path(payload.trackingVideoPath) if payload.trackingVideoPath else None,
-    )
+    with _inference_lock:
+        model = get_vitality_model()
+        return analyze_vitality_video(
+            model=model,
+            video_path=video_path,
+            conf=DEFAULT_CONF,
+            imgsz=DEFAULT_VITALITY_IMGSZ,
+            target_class=payload.targetClass or DEFAULT_VITALITY_TARGET_CLASS,
+            max_frames=payload.maxFrames or DEFAULT_VITALITY_MAX_FRAMES,
+            render_tracking_video=bool(payload.renderTrackingVideo),
+            tracking_video_path=Path(payload.trackingVideoPath) if payload.trackingVideoPath else None,
+        )
 
 
 @app.post("/infer/density")
-async def infer_density(payload: DensityRequest) -> dict[str, Any]:
+def infer_density(payload: DensityRequest) -> dict[str, Any]:
     video_path = Path(payload.filePath)
     if not video_path.exists():
         raise HTTPException(status_code=400, detail=f"Video file not found: {video_path}")
 
-    return analyze_density_video(
-        model=None,
-        video_path=video_path,
-        conf=DEFAULT_CONF,
-        imgsz=DEFAULT_IMGSZ,
-        target_class=payload.targetClass or DEFAULT_DENSITY_TARGET_CLASS,
-        frame_interval_seconds=payload.frameSampleIntervalSeconds or DEFAULT_DENSITY_FRAME_INTERVAL_SECONDS,
-        count_multiplier=payload.countMultiplier or DEFAULT_DENSITY_COUNT_MULTIPLIER,
-        max_frames=payload.maxFrames or DEFAULT_DENSITY_MAX_FRAMES,
-    )
+    with _inference_lock:
+        return analyze_density_video(
+            model=None,
+            video_path=video_path,
+            conf=DEFAULT_CONF,
+            imgsz=DEFAULT_IMGSZ,
+            target_class=payload.targetClass or DEFAULT_DENSITY_TARGET_CLASS,
+            frame_interval_seconds=payload.frameSampleIntervalSeconds or DEFAULT_DENSITY_FRAME_INTERVAL_SECONDS,
+            count_multiplier=payload.countMultiplier or DEFAULT_DENSITY_COUNT_MULTIPLIER,
+            max_frames=payload.maxFrames or DEFAULT_DENSITY_MAX_FRAMES,
+        )

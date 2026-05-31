@@ -75,30 +75,7 @@ const inferJson = async (type, payload) => {
     }
     return response.json();
   } catch (error) {
-    if (env.modelRuntimeRequired) throw error;
-    if (type === 'density' && error instanceof HttpError && error.status >= 400 && error.status < 500) {
-      throw error;
-    }
-    if (type === 'density') {
-      return {
-        countValue: 150,
-        bestFrameCount: 10,
-        estimatedCountPerMl: 150,
-        densityPerLiter: 150000,
-        averageFrameCount: 7.5,
-        sampledFrames: 10,
-        videoDurationSeconds: 10,
-        targetClass: 'predator',
-        countMultiplier: 15,
-        selectedFrameIndex: 90,
-        selectedFrameTimestampSeconds: 9,
-        selectedFrameQuality: { sharpness: 80, brightness: 128, quality_score: 1, passes_quality: true },
-        densityGrade: 'marketable',
-        warnings: ['Density model runtime failed; fallback result was used'],
-        frameCounts: [],
-      };
-    }
-    return { vitalityScore: 78, activeRatio: 0.84, averageSpeedMmPerSec: 1.8, trend: [64, 69, 73, 78] };
+    throw error;
   }
 };
 

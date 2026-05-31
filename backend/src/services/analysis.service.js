@@ -25,6 +25,7 @@ const createUploadedFile = async (file, boxId, client) => {
 };
 
 const numberOrZero = (value) => Number(value ?? 0);
+const errorMessage = (error) => (error instanceof Error ? error.message : String(error));
 
 const toRepresentativeTrack = (sample, track) => ({
   sampleIndex: sample.sampleIndex,
@@ -37,6 +38,7 @@ const toRepresentativeTrack = (sample, track) => ({
   totalDistanceMm: track.total_distance_mm,
   meanSpeedPxPerSec: track.mean_speed_px_sec,
   meanSpeedMmPerSec: track.mean_speed_mm_sec,
+  meanSpeedRatio: track.mean_speed_ratio,
   movingRatio: track.moving_ratio,
   vitalityScore: track.vitality_score,
   visibilityRatio: track.visibility_ratio,
@@ -73,7 +75,7 @@ const selectRepresentativeTrack = (sampleResults) => {
 
 const trackingVideoOutputFor = (file) => {
   const baseName = path.parse(file.filename || path.basename(file.path)).name;
-  const relativePath = path.join('tracking', `${baseName}-tracking.mp4`);
+  const relativePath = path.join('tracking', `${baseName}-tracking.webm`);
   const outputPath = path.join(env.uploadDir, relativePath);
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   return {
@@ -88,8 +90,8 @@ export const analysisService = {
     if (!box || box.deletedAt) throw notFound('활성 사육박스를 찾을 수 없습니다.');
 
     const densityFiles = Array.isArray(files) ? files : [];
-    if (densityFiles.length !== 20) {
-      throw new HttpError(400, '밀도 측정은 서로 다른 1 mL 배지 영상 20개를 반드시 업로드해야 합니다.');
+    if (densityFiles.length < 1) {
+      throw new HttpError(400, '밀도 측정은 1개 이상의 1 mL 배지 영상이 필요합니다.');
     }
 
     const progress = analysisProgressService.create({ type: 'density', totalSamples: densityFiles.length });
@@ -116,8 +118,8 @@ export const analysisService = {
     if (!box || box.deletedAt) throw notFound('활성 사육박스를 찾을 수 없습니다.');
 
     const densityFiles = Array.isArray(files) ? files : [];
-    if (densityFiles.length !== 20) {
-      throw new HttpError(400, '밀도 측정은 서로 다른 1 mL 배지 영상 20개를 반드시 업로드해야 합니다.');
+    if (densityFiles.length < 1) {
+      throw new HttpError(400, '밀도 측정은 1개 이상의 1 mL 배지 영상이 필요합니다.');
     }
 
     const sampleResults = [];
@@ -130,7 +132,7 @@ export const analysisService = {
         status: 'processing',
         percent,
         currentSample: sampleIndex,
-        message: `${sampleIndex}/20 ${phase}`,
+        message: `${sampleIndex}/${densityFiles.length} ${phase}`,
       });
       analysisProgressService.updateSample(options.progressJobId, sampleIndex, patch);
     };
@@ -142,13 +144,22 @@ export const analysisService = {
         status: 'density',
         originalName: file.originalname,
       });
-      const densityResult = await modelRuntimeService.inferDensity({
-        cultureBoxId: input.boxId,
-        filePath: file?.path,
-        measuredAt: input.measuredAt,
-        mimeType: file?.mimetype,
-        sampleIndex,
-      });
+      let densityResult;
+      try {
+        densityResult = await modelRuntimeService.inferDensity({
+          cultureBoxId: input.boxId,
+          filePath: file?.path,
+          measuredAt: input.measuredAt,
+          mimeType: file?.mimetype,
+          sampleIndex,
+        });
+      } catch (error) {
+        updateProgress(sampleIndex, '밀도 분석 실패', {
+          status: 'failed',
+          error: errorMessage(error),
+        });
+        throw new Error(`${sampleIndex}/${densityFiles.length} 밀도 분석 실패: ${errorMessage(error)}`);
+      }
       completedOps += 1;
       updateProgress(sampleIndex, '활력도 분석 중', {
         status: 'vitality',
@@ -156,15 +167,24 @@ export const analysisService = {
         estimatedCountPerMl: densityResult.estimatedCountPerMl,
       });
       const trackingVideo = sampleIndex === 1 ? trackingVideoOutputFor(file) : null;
-      const vitalityResult = await modelRuntimeService.inferVitality({
-        cultureBoxId: input.boxId,
-        filePath: file?.path,
-        mimeType: file?.mimetype,
-        measuredAt: input.measuredAt,
-        sampleIndex,
-        renderTrackingVideo: Boolean(trackingVideo),
-        trackingVideoPath: trackingVideo?.outputPath,
-      });
+      let vitalityResult;
+      try {
+        vitalityResult = await modelRuntimeService.inferVitality({
+          cultureBoxId: input.boxId,
+          filePath: file?.path,
+          mimeType: file?.mimetype,
+          measuredAt: input.measuredAt,
+          sampleIndex,
+          renderTrackingVideo: Boolean(trackingVideo),
+          trackingVideoPath: trackingVideo?.outputPath,
+        });
+      } catch (error) {
+        updateProgress(sampleIndex, '활력도 분석 실패', {
+          status: 'failed',
+          error: errorMessage(error),
+        });
+        throw new Error(`${sampleIndex}/${densityFiles.length} 활력도 분석 실패: ${errorMessage(error)}`);
+      }
       if (trackingVideo && vitalityResult.trackingVideoPath) {
         vitalityResult.trackingVideoUrl = trackingVideo.url;
       }
@@ -365,6 +385,7 @@ export const analysisService = {
           sampleCount: modelResult.sampleCount,
           sampledFrames: modelResult.sampledFrames,
           videoDurationSeconds: modelResult.videoDurationSeconds,
+          analysisWindowSeconds: modelResult.sampleResults?.[0]?.density?.analysisWindowSeconds,
           selectedFrameIndex: modelResult.selectedFrameIndex,
           selectedFrameTimestampSeconds: modelResult.selectedFrameTimestampSeconds,
           selectedFrameQuality: modelResult.selectedFrameQuality,
@@ -375,6 +396,7 @@ export const analysisService = {
           score: vitalityScore,
           activeRatio: modelResult.activeRatio,
           averageSpeedMmPerSec: modelResult.averageSpeedMmPerSec,
+          averageSpeedRatio: modelResult.averageSpeedRatio,
           confirmedTracks: modelResult.confirmedTracks,
           movingTracks: modelResult.movingTracks,
           representativeTrack: modelResult.representativeTrack,

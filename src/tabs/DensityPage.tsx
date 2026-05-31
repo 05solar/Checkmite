@@ -11,14 +11,12 @@ import type { DensityProgress, DensityResult } from '../api/client';
 import type { CultureBox, PhaseId } from '../types';
 
 const DEN_STEPS = [
-  '20개 1 mL 배지 영상 확인…',
+  '1 mL 배지 영상 확인…',
   '각 영상 10초 이상 여부 검증…',
   '영상별 좋은 프레임 선별…',
-  '20개 배지 count 평균 및 활력도 산출…',
+  '업로드 배지 count 평균 및 활력도 산출…',
   '통합 분석 결과 저장…',
 ];
-
-const REQUIRED_DENSITY_VIDEOS = 20;
 
 function fileMeta(file: File) {
   const mb = (file.size / 1024 / 1024).toFixed(1);
@@ -64,15 +62,15 @@ function DensityResultView({ data, onReset }: DensityResultViewProps) {
             <div className="card-title"><Icon name="trend" />밀도 정보</div>
             <Badge kind="accent" dot>완료</Badge>
           </div>
-          <div className="metric-row"><span className="mr-k">선택 프레임 count</span><span className="mr-v mono">{density.bestFrameCount}마리</span></div>
-          <div className="metric-row"><span className="mr-k">20개 평균 1 mL count</span><span className="mr-v mono">{density.estimatedCountPerMl.toLocaleString()}마리</span></div>
           <div className="metric-row"><span className="mr-k">평균 프레임 count</span><span className="mr-v mono">{density.averageFrameCount?.toFixed(1) ?? '-'}마리</span></div>
-          <div className="metric-row"><span className="mr-k">분석 영상 수</span><span className="mr-v mono">{density.sampleCount ?? REQUIRED_DENSITY_VIDEOS}개</span></div>
+          <div className="metric-row"><span className="mr-k">평균 1 mL 밀도</span><span className="mr-v mono">{density.estimatedCountPerMl.toLocaleString()}마리</span></div>
+          <div className="metric-row"><span className="mr-k">최대 프레임 count</span><span className="mr-v mono">{density.bestFrameCount}마리</span></div>
+          <div className="metric-row"><span className="mr-k">분석 영상 수</span><span className="mr-v mono">{density.sampleCount ?? data.samples?.length ?? 0}개</span></div>
         </div>
         {density.bestFrameCount > 0 && (
           <div className="card" style={{ marginTop: 18 }}>
             <div className="card-head">
-              <div className="card-title"><Icon name="trend" />선택 프레임</div>
+              <div className="card-title"><Icon name="trend" />최대 프레임</div>
               <span className="card-sub">frame {density.selectedFrameIndex ?? '-'}</span>
             </div>
             <LineChart data={[0, density.averageFrameCount ?? 0, density.bestFrameCount, density.averageFrameCount ?? 0, density.bestFrameCount]} />
@@ -94,14 +92,14 @@ function DensityResultView({ data, onReset }: DensityResultViewProps) {
 
         <div className="grid grid-2" style={{ gridTemplateColumns: '1fr 1fr' }}>
           <div className="stat">
-            <div className="stat-label">선택 프레임</div>
+            <div className="stat-label">최대 프레임</div>
             <div className="stat-value tnum">{density.bestFrameCount}<small>마리</small></div>
             <div className="stat-sub">{density.selectedFrameTimestampSeconds?.toFixed(1) ?? '-'}초 지점</div>
           </div>
           <div className="stat">
             <div className="stat-label">샘플 프레임</div>
             <div className="stat-value tnum">{density.sampledFrames ?? '-'}<small>개</small></div>
-            <div className="stat-sub">1초당 1프레임</div>
+            <div className="stat-sub">앞 {density.analysisWindowSeconds?.toFixed(1) ?? '10.0'}초 · 1초당 1프레임</div>
           </div>
         </div>
 
@@ -113,6 +111,9 @@ function DensityResultView({ data, onReset }: DensityResultViewProps) {
           )}
           {vitality?.averageSpeedMmPerSec != null && (
             <div className="metric-row"><span className="mr-k">평균 속도</span><span className="mr-v mono">{vitality.averageSpeedMmPerSec.toFixed(3)} mm/s</span></div>
+          )}
+          {vitality?.averageSpeedRatio != null && (
+            <div className="metric-row"><span className="mr-k">먹이응애 기준 속도</span><span className="mr-v mono">{vitality.averageSpeedRatio.toFixed(2)}x</span></div>
           )}
           <div className="metric-row"><span className="mr-k">확정 track</span><span className="mr-v mono">{vitality?.confirmedTracks ?? '-'}개</span></div>
           <div className="metric-row"><span className="mr-k">이동 track</span><span className="mr-v mono">{vitality?.movingTracks ?? '-'}개</span></div>
@@ -126,6 +127,7 @@ function DensityResultView({ data, onReset }: DensityResultViewProps) {
             <div className="metric-row"><span className="mr-k">track 활력도</span><span className="mr-v mono">{representativeTrack.vitalityScore?.toFixed(1) ?? '-'}점</span></div>
             <div className="metric-row"><span className="mr-k">관측 프레임</span><span className="mr-v mono">{representativeTrack.framesSeen ?? '-'}개</span></div>
             <div className="metric-row"><span className="mr-k">이동거리</span><span className="mr-v mono">{representativeTrack.totalDistancePx?.toFixed(1) ?? '-'}px</span></div>
+            <div className="metric-row"><span className="mr-k">상대 속도</span><span className="mr-v mono">{representativeTrack.meanSpeedRatio?.toFixed(2) ?? '-'}x</span></div>
             <div className="metric-row"><span className="mr-k">이동 비율</span><span className="mr-v mono">{representativeTrack.movingRatio != null ? `${Math.round(representativeTrack.movingRatio * 100)}%` : '-'}</span></div>
           </div>
         )}
@@ -149,7 +151,7 @@ function DensityResultView({ data, onReset }: DensityResultViewProps) {
       {data.samples && data.samples.length > 0 && (
         <div className="card" style={{ gridColumn: '1 / -1', marginTop: 18 }}>
           <div className="card-head">
-            <div className="card-title"><Icon name="layers" />20개 샘플 분석 결과</div>
+            <div className="card-title"><Icon name="layers" />샘플 분석 결과</div>
             <span className="card-sub">{data.samples.length}개 영상</span>
           </div>
           <div className="grid" style={{ gap: 8, maxHeight: 460, overflow: 'auto' }}>
@@ -201,24 +203,41 @@ export function DensityPage({ boxes, selectedBoxId, onBoxChange, onBoxCreate }: 
   const [uploadPercent, setUploadPercent] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handlePick = (picked: FileList | File[]) => {
     const selected = Array.from(picked);
-    setFiles(selected);
+    const known = new Set(files.map((file) => `${file.name}-${file.size}-${file.lastModified}`));
+    const nextFiles = [
+      ...files,
+      ...selected.filter((file) => {
+        const key = `${file.name}-${file.size}-${file.lastModified}`;
+        if (known.has(key)) return false;
+        known.add(key);
+        return true;
+      }),
+    ];
+    setFiles(nextFiles);
     setProgress(null);
     setUploadPercent(0);
-    setError(
-      selected.length === REQUIRED_DENSITY_VIDEOS
-        ? null
-        : `서로 다른 1 mL 배지 영상 ${REQUIRED_DENSITY_VIDEOS}개를 정확히 선택해주세요.`
-    );
+    setError(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
     setPhase('file');
+  };
+
+  const removeFile = (indexToRemove: number) => {
+    const nextFiles = files.filter((_, index) => index !== indexToRemove);
+    setFiles(nextFiles);
+    setProgress(null);
+    setUploadPercent(0);
+    setError(null);
+    setPhase(nextFiles.length ? 'file' : 'idle');
   };
 
   const startAnalysis = () => {
     if (!files.length || !selectedBoxId) return;
-    if (files.length !== REQUIRED_DENSITY_VIDEOS) {
-      setError(`밀도 측정은 서로 다른 1 mL 배지 영상 ${REQUIRED_DENSITY_VIDEOS}개가 필요합니다.`);
+    if (files.length < 1) {
+      setError('밀도 측정은 1개 이상의 영상이 필요합니다.');
       return;
     }
     setError(null);
@@ -283,7 +302,7 @@ export function DensityPage({ boxes, selectedBoxId, onBoxChange, onBoxCreate }: 
       <div className="page-head">
         <div className="page-eyebrow"><span className="pe-dot" />밀도 측정 · DENSITY</div>
         <h1 className="page-title">영상 기반 통합 분석</h1>
-        <p className="page-desc">서로 다른 1 mL 배지 영상 20개를 업로드하면 같은 영상으로 평균 count, L당 밀도, 활력도를 함께 산출합니다.</p>
+        <p className="page-desc">1개 이상의 1 mL 배지 영상을 업로드하면 각 영상의 처음 10초 구간으로 평균 count, L당 밀도, 활력도를 함께 산출합니다.</p>
       </div>
 
       <div style={{ marginBottom: 18 }}>
@@ -299,8 +318,9 @@ export function DensityPage({ boxes, selectedBoxId, onBoxChange, onBoxCreate }: 
       {phase === 'idle' && (
         <div className="grid grid-2">
           <div className="card">
-            <div className="card-head"><div className="card-title"><Icon name="upload" />20개 영상 업로드</div></div>
+            <div className="card-head"><div className="card-title"><Icon name="upload" />영상 업로드</div></div>
             <input
+              ref={fileInputRef}
               type="file"
               accept="video/*"
               multiple
@@ -310,14 +330,14 @@ export function DensityPage({ boxes, selectedBoxId, onBoxChange, onBoxCreate }: 
               style={{ width: '100%', padding: '12px 0' }}
             />
             <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.6 }}>
-              서로 다른 1 mL 배지에서 촬영한 10초 이상 영상 {REQUIRED_DENSITY_VIDEOS}개를 선택하세요.
+              1개 이상의 1 mL 배지에서 촬영한 10초 이상 영상을 선택하세요.
               같은 영상으로 밀도와 활력도를 함께 계산합니다.
-              20개가 아니면 분석을 시작하지 않습니다.
+              10초를 초과하는 영상은 앞 10초 구간만 분석합니다.
             </div>
           </div>
           <div className="card">
             <div className="card-head"><div className="card-title"><Icon name="info" />측정 단계</div></div>
-            <div className="metric-row"><span className="mr-k">1. 샘플</span><span className="mr-v" style={{ color: 'var(--text-2)', fontWeight: 500 }}>서로 다른 1 mL 배지 20개</span></div>
+            <div className="metric-row"><span className="mr-k">1. 샘플</span><span className="mr-v" style={{ color: 'var(--text-2)', fontWeight: 500 }}>1개 이상 1 mL 배지</span></div>
             <div className="metric-row"><span className="mr-k">2. 밀도</span><span className="mr-v" style={{ color: 'var(--text-2)', fontWeight: 500 }}>영상별 최대 count 프레임 선택</span></div>
             <div className="metric-row"><span className="mr-k">3. 활력도</span><span className="mr-v" style={{ color: 'var(--text-2)', fontWeight: 500 }}>같은 영상의 움직임 추적</span></div>
           </div>
@@ -329,13 +349,29 @@ export function DensityPage({ boxes, selectedBoxId, onBoxChange, onBoxCreate }: 
           <div className="card">
             <div className="card-head">
               <div className="card-title"><Icon name="video" />선택된 영상</div>
-              <Badge kind={files.length === REQUIRED_DENSITY_VIDEOS ? 'accent' : 'low'}>
-                {files.length}/{REQUIRED_DENSITY_VIDEOS}
+              <Badge kind="accent">
+                {files.length}개
               </Badge>
             </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="video/*"
+              multiple
+              onChange={(event) => {
+                if (event.target.files) handlePick(event.target.files);
+              }}
+              style={{ width: '100%', padding: '0 0 12px' }}
+            />
             <div className="grid" style={{ gap: 8, maxHeight: 360, overflow: 'auto' }}>
               {files.map((file, index) => (
-                <FileChip key={`${file.name}-${index}`} name={`${index + 1}. ${file.name}`} meta={fileMeta(file)} kind="video" />
+                <FileChip
+                  key={`${file.name}-${file.size}-${file.lastModified}`}
+                  name={`${index + 1}. ${file.name}`}
+                  meta={fileMeta(file)}
+                  kind="video"
+                  onRemove={() => removeFile(index)}
+                />
               ))}
             </div>
           </div>
@@ -353,7 +389,7 @@ export function DensityPage({ boxes, selectedBoxId, onBoxChange, onBoxCreate }: 
             percent={progress ? progress.percent : Math.min(9, Math.round(uploadPercent / 12))}
             message={progress ? progress.message : `영상 업로드 중 ${uploadPercent}%`}
             currentSample={progress?.currentSample}
-            totalSamples={progress?.totalSamples ?? REQUIRED_DENSITY_VIDEOS}
+            totalSamples={progress?.totalSamples ?? files.length}
           />
           {progress && (
             <div className="card" style={{ marginTop: 16 }}>

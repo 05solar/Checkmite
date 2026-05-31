@@ -5,7 +5,7 @@ import { asyncHandler } from '../utils/async-handler.js';
 
 export const analysisRoutes = Router();
 
-analysisRoutes.post('/density', upload.array('files', 20), asyncHandler(analysisController.density));
+analysisRoutes.post('/density', upload.array('files'), asyncHandler(analysisController.density));
 analysisRoutes.get('/density/:jobId/progress', asyncHandler(analysisController.densityProgress));
 analysisRoutes.post('/vitality', upload.single('file'), asyncHandler(analysisController.vitality));
 analysisRoutes.post('/detection', upload.single('file'), asyncHandler(analysisController.detection));
