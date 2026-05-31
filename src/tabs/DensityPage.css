@@ -41,3 +41,61 @@
 }
 
 .vid-time { font-family: var(--mono); font-size: 12px; color: var(--text-2); flex: none; }
+
+.vitality-notice {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.vitality-notice strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.vitality-notice-danger {
+  border-color: #E1A6A6;
+  background: #FFF1F1;
+  color: #7F1D1D;
+}
+
+.vitality-notice-danger strong {
+  color: #991B1B;
+}
+
+.vitality-notice-caution {
+  border-color: #E7C66C;
+  background: #FFF8E1;
+  color: #744B00;
+}
+
+.vitality-notice-caution strong {
+  color: #8A5A00;
+}
+
+[data-theme="dark"] .vitality-notice-danger {
+  border-color: #7F2A2A;
+  background: #2A1717;
+  color: #F2B8B8;
+}
+
+[data-theme="dark"] .vitality-notice-danger strong {
+  color: #FCA5A5;
+}
+
+[data-theme="dark"] .vitality-notice-caution {
+  border-color: #725A1B;
+  background: #271F0F;
+  color: #F3D58A;
+}
+
+[data-theme="dark"] .vitality-notice-caution strong {
+  color: #FDE68A;
+}

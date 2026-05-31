@@ -56,6 +56,11 @@ export interface DensityResult {
     activeRatio?: number | null;
     averageSpeedMmPerSec?: number | null;
     averageSpeedRatio?: number | null;
+    notice?: {
+      level: 'normal' | 'caution' | 'danger';
+      label: string;
+      message: string;
+    } | null;
     trend: number[];
     sampleCount?: number;
     confirmedTracks?: number;
@@ -93,6 +98,7 @@ export interface DensityResult {
     vitalityScore?: number;
     activeRatio?: number | null;
     averageSpeedMmPerSec?: number | null;
+    averageSpeedRatio?: number | null;
     confirmedTracks?: number;
     movingTracks?: number;
   }>;

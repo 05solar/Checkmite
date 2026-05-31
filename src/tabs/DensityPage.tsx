@@ -45,6 +45,31 @@ interface DensityResultViewProps {
   onReset: () => void;
 }
 
+function vitalityNotice(vitality: DensityResult['vitality']) {
+  if (vitality?.notice) return vitality.notice;
+  if (vitality?.averageSpeedRatio == null) return null;
+  const ratio = vitality.averageSpeedRatio;
+  if (ratio <= 2) {
+    return {
+      level: 'danger' as const,
+      label: '위험',
+      message: `천적응애 평균속도가 먹이응애 기준 ${ratio.toFixed(2)}x입니다. 2x 이하이면 활력 저하 위험으로 즉시 확인이 필요합니다.`,
+    };
+  }
+  if (ratio <= 3) {
+    return {
+      level: 'caution' as const,
+      label: '주의',
+      message: `천적응애 평균속도가 먹이응애 기준 ${ratio.toFixed(2)}x입니다. 3x 이하이면 활력 저하 가능성을 관찰해야 합니다.`,
+    };
+  }
+  return {
+    level: 'normal' as const,
+    label: '정상 관찰',
+    message: `천적응애 평균속도가 먹이응애 기준 ${ratio.toFixed(2)}x입니다.`,
+  };
+}
+
 function DensityResultView({ data, onReset }: DensityResultViewProps) {
   const density = data.density;
   const perLiter = density.currentDensityPerLiter.toLocaleString();
@@ -53,6 +78,7 @@ function DensityResultView({ data, onReset }: DensityResultViewProps) {
   const vitality = data.vitality;
   const activeRatioPct = vitality?.activeRatio != null ? Math.round(vitality.activeRatio * 100) : null;
   const representativeTrack = vitality?.representativeTrack;
+  const notice = vitalityNotice(vitality);
 
   return (
     <div className="fade-in grid grid-2">
@@ -105,6 +131,12 @@ function DensityResultView({ data, onReset }: DensityResultViewProps) {
 
         <div className="card">
           <div className="card-head"><div className="card-title"><Icon name="pulse" />활력도 정보</div></div>
+          {notice && notice.level !== 'normal' && (
+            <div className={`vitality-notice vitality-notice-${notice.level}`}>
+              <strong>{notice.label}</strong>
+              <span>{notice.message}</span>
+            </div>
+          )}
           <div className="metric-row"><span className="mr-k">평균 활력도</span><span className="mr-v mono">{vitality?.score ?? '-'}점</span></div>
           {activeRatioPct != null && (
             <div className="metric-row"><span className="mr-k">활동 개체 비율</span><span className="mr-v mono">{activeRatioPct}%</span></div>
@@ -159,7 +191,7 @@ function DensityResultView({ data, onReset }: DensityResultViewProps) {
               <div className="metric-row" key={sample.sampleIndex}>
                 <span className="mr-k">{sample.sampleIndex}. {sample.originalName}</span>
                 <span className="mr-v mono">
-                  count {sample.estimatedCountPerMl ?? '-'} / mL · density {sample.densityPerLiter?.toLocaleString() ?? '-'} / L · vitality {sample.vitalityScore?.toFixed(1) ?? '-'}점 · tracks {sample.confirmedTracks ?? 0}/{sample.movingTracks ?? 0}
+                  count {sample.estimatedCountPerMl ?? '-'} / mL · density {sample.densityPerLiter?.toLocaleString() ?? '-'} / L · vitality {sample.vitalityScore?.toFixed(1) ?? '-'}점 · speed {sample.averageSpeedRatio?.toFixed(2) ?? '-'}x · tracks {sample.confirmedTracks ?? 0}/{sample.movingTracks ?? 0}
                 </span>
               </div>
             ))}
