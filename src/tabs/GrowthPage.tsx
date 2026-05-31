@@ -20,6 +20,18 @@ function dateOnly(value: string) {
   return value.slice(0, 10);
 }
 
+function densityValue(value: number | undefined) {
+  return value === undefined || value === null ? '-' : value.toLocaleString();
+}
+
+function numberValue(value: number | undefined, digits = 0) {
+  if (value === undefined || value === null) return '-';
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}
+
 export function GrowthPage({
   boxes,
   selectedBoxId,
@@ -45,7 +57,7 @@ export function GrowthPage({
     });
   }, [box?.id]);
 
-  const densityTrend = growth?.densityTrend.map((d) => d.densityPerCm2) ?? [];
+  const countTrend = growth?.countTrend.map((d) => d.countValue) ?? [];
   const vitalityTrend = growth?.vitalityTrend.map((v) => v.score) ?? [];
   const growthLabel = growth?.growthLabel ?? '유지 관찰';
   const growthBadge =
@@ -55,9 +67,9 @@ export function GrowthPage({
     <div className="page">
       <div className="page-head">
         <div className="page-eyebrow"><span className="pe-dot" />증식률 분석 · GROWTH</div>
-        <h1 className="page-title">밀도 기반 증식률 분석</h1>
+        <h1 className="page-title">count · 활력도 기반 증식률 분석</h1>
         <p className="page-desc">
-          측정 count로 산출된 밀도값을 기준으로 현재 밀도량, 밀도 변화율, 활력도 추이, 증식률 결과를 보여줍니다.
+          배양 상자별 날짜 누적 count와 활력도 변화를 3:1 가중치로 반영해 기간별 증식 상태를 보여줍니다.
         </p>
       </div>
 
@@ -86,39 +98,39 @@ export function GrowthPage({
 
       <div className="grid grid-4">
         <div className="stat">
-          <div className="stat-label">현재 밀도량</div>
+          <div className="stat-label">현재 count</div>
           <div className="stat-value tnum">
-            {growth && growth.currentDensityPerCm2 > 0 ? growth.currentDensityPerCm2.toFixed(1) : '-'}
-            <small>마리/cm2</small>
+            {growth && growth.currentCount > 0 ? numberValue(growth.currentCount) : '-'}
+            <small>마리/mL</small>
           </div>
-          <div className="stat-sub">{growth?.to ?? '밀도 측정 필요'}</div>
+          <div className="stat-sub">{growth?.to ?? 'count 측정 필요'}</div>
         </div>
         <div className="stat">
-          <div className="stat-label">밀도 변화율</div>
-          <div className="stat-value tnum">{growth?.densityChangeRatePercent.toFixed(1) ?? 0}<small>%</small></div>
-          <div className="stat-sub">{growth ? `${growth.from} 대비` : '밀도 기반'}</div>
+          <div className="stat-label">count 변화율</div>
+          <div className="stat-value tnum">{growth?.countChangeRatePercent.toFixed(1) ?? 0}<small>%</small></div>
+          <div className="stat-sub">{growth ? `${growth.from} 대비` : 'count 기반'}</div>
         </div>
         <div className="stat">
-          <div className="stat-label">일 밀도 증가량</div>
-          <div className="stat-value tnum">{growth?.densityGrowthPerDay.toFixed(3) ?? 0}<small>/일</small></div>
-          <div className="stat-sub">{growth ? `${growth.days}일 기준` : '밀도 측정 필요'}</div>
+          <div className="stat-label">일 count 증식량</div>
+          <div className="stat-value tnum">{growth?.countGrowthPerDay.toFixed(2) ?? 0}<small>/일</small></div>
+          <div className="stat-sub">{growth ? `${growth.days}일 기준` : 'count 측정 필요'}</div>
         </div>
         <div className="stat">
-          <div className="stat-label">증식률 결과</div>
-          <div className="stat-value tnum">{growth?.logDensityGrowthPerDay.toFixed(4) ?? 0}</div>
-          <div className="stat-sub">로그 밀도 성장률</div>
+          <div className="stat-label">통합 증식률</div>
+          <div className="stat-value tnum">{growth?.weightedGrowthRatePercent.toFixed(1) ?? 0}<small>%</small></div>
+          <div className="stat-sub">count 75% · 활력도 25%</div>
         </div>
       </div>
 
       <div className="grid grid-2 growth-main">
         <div className="card">
           <div className="card-head">
-            <div className="card-title"><Icon name="grid" />밀도 추이</div>
-            <span className="card-sub">latest {growth?.currentDensityPerCm2.toFixed(1) ?? '-'} / cm2</span>
+            <div className="card-title"><Icon name="grid" />count 추이</div>
+            <span className="card-sub">latest {numberValue(growth?.currentCount)} / mL</span>
           </div>
-          {densityTrend.length > 1
-            ? <LineChart data={densityTrend} xlabel="측정" />
-            : <div className="growth-empty">밀도 측정 데이터가 더 필요합니다.</div>}
+          {countTrend.length > 1
+            ? <LineChart data={countTrend} xlabel="측정" />
+            : <div className="growth-empty">count 측정 데이터가 더 필요합니다.</div>}
         </div>
 
         <div className="card">
@@ -137,13 +149,15 @@ export function GrowthPage({
             <Badge kind={growthBadge} dot>{growthLabel}</Badge>
           </div>
           <div className="growth-formula">
-            <span>density = count / measured_area_cm2</span>
-            <span>density_change_rate = (current_density - first_density) / first_density * 100</span>
+            <span>growth_rate_per_day = (count_day_t - count_day_0) / days</span>
+            <span>weighted_growth = count_change_rate * 0.75 + vitality_change_rate * 0.25</span>
           </div>
           <div className="metric-row"><span className="mr-k">기준 기간</span><span className="mr-v">{growth ? `${growth.from} - ${growth.to}` : '-'}</span></div>
-          <div className="metric-row"><span className="mr-k">밀도 변화량</span><span className="mr-v mono">{growth?.densityChangePerCm2.toFixed(2) ?? '-'} / cm2</span></div>
-          <div className="metric-row"><span className="mr-k">밀도 변화율</span><span className="mr-v mono">{growth?.densityChangeRatePercent.toFixed(1) ?? '-'}%</span></div>
-          <div className="metric-row"><span className="mr-k">로그 성장률</span><span className="mr-v mono">{growth?.logDensityGrowthPerDay.toFixed(4) ?? '-'}</span></div>
+          <div className="metric-row"><span className="mr-k">count 변화량</span><span className="mr-v mono">{numberValue(growth?.countChange)} / mL</span></div>
+          <div className="metric-row"><span className="mr-k">count 변화율</span><span className="mr-v mono">{growth?.countChangeRatePercent.toFixed(1) ?? '-'}%</span></div>
+          <div className="metric-row"><span className="mr-k">활력도 변화율</span><span className="mr-v mono">{growth?.vitalityChangeRatePercent.toFixed(1) ?? '-'}%</span></div>
+          <div className="metric-row"><span className="mr-k">로그 count 성장률</span><span className="mr-v mono">{growth?.logCountGrowthPerDay.toFixed(4) ?? '-'}</span></div>
+          <div className="metric-row"><span className="mr-k">보조 밀도</span><span className="mr-v mono">{densityValue(growth?.currentDensityPerLiter)} / L</span></div>
         </div>
       </div>
 
@@ -156,7 +170,8 @@ export function GrowthPage({
           <div className="growth-row growth-row-head">
             <span>날짜</span>
             <span>유형</span>
-            <span>밀도</span>
+            <span>count</span>
+            <span>밀도(마리/L)</span>
             <span>활력도</span>
           </div>
           {measurements.length === 0 && (
@@ -169,7 +184,8 @@ export function GrowthPage({
               <div className="growth-row" key={item.id}>
                 <span>{dateOnly(item.measuredAt)}</span>
                 <span>{item.type}</span>
-                <span className="mono">{item.densityPerCm2 ?? '-'}</span>
+                <span className="mono">{item.countValue?.toLocaleString() ?? '-'}</span>
+                <span className="mono">{item.densityPerLiter?.toLocaleString() ?? '-'}</span>
                 <span className="mono">{item.vitalityScore ?? '-'}</span>
               </div>
             ))}

@@ -1,5 +1,6 @@
 import { readFile } from 'fs/promises';
 import { env } from '../config/env.js';
+import { HttpError } from '../utils/http-error.js';
 
 const inferDetection = async (payload) => {
   try {
@@ -56,7 +57,7 @@ const inferDetection = async (payload) => {
 
 const inferJson = async (type, payload) => {
   try {
-    const timeoutMs = type === 'vitality' ? 300_000 : 30_000;
+    const timeoutMs = type === 'vitality' || type === 'density' ? 300_000 : 30_000;
     const response = await fetch(`${env.modelRuntimeUrl}/infer/${type}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -64,14 +65,17 @@ const inferJson = async (type, payload) => {
       signal: AbortSignal.timeout(timeoutMs),
     });
 
-    if (!response.ok) throw new Error(`Model runtime responded with ${response.status}`);
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new HttpError(
+        response.status,
+        body.detail || body.message || `Model runtime responded with ${response.status}`,
+        body
+      );
+    }
     return response.json();
   } catch (error) {
-    if (env.modelRuntimeRequired) throw error;
-    if (type === 'density') {
-      return { countValue: 34, peakCount: 34, averageCount: 21.5, densityGrade: 'normal' };
-    }
-    return { vitalityScore: 78, activeRatio: 0.84, averageSpeedMmPerSec: 1.8, trend: [64, 69, 73, 78] };
+    throw error;
   }
 };
 

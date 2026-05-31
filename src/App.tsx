@@ -3,24 +3,26 @@ import './App.css';
 import { Nav } from './components/Nav';
 import { DetectionPage } from './tabs/DetectionPage';
 import { DensityPage } from './tabs/DensityPage';
-import { VitalityPage } from './tabs/VitalityPage';
 import { GrowthPage } from './tabs/GrowthPage';
 import { TrashPage } from './tabs/TrashPage';
 import { api } from './api/client';
 import type { CultureBox, TabId, Theme, TrashedCultureBox } from './types';
 
 const isTabId = (value: string | null): value is TabId =>
-  value === 'detection' || value === 'density' || value === 'vitality' || value === 'growth' || value === 'trash';
+  value === 'detection' || value === 'density' || value === 'growth' || value === 'trash';
+
+const savedTab = (): TabId => {
+  const saved = localStorage.getItem('cm-tab');
+  if (saved === 'vitality') return 'density';
+  return isTabId(saved) ? saved : 'detection';
+};
 
 export function App() {
   const [boxes, setBoxes] = useState<CultureBox[]>([]);
   const [trashDb, setTrashDb] = useState<TrashedCultureBox[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabId>(
-    () => {
-      const saved = localStorage.getItem('cm-tab');
-      return isTabId(saved) ? saved : 'detection';
-    },
+    savedTab,
   );
   const [theme, setTheme] = useState<Theme>(
     () => (localStorage.getItem('cm-theme') as Theme) || 'light',
@@ -125,14 +127,6 @@ export function App() {
       )}
       {tab === 'density' && (
         <DensityPage
-          boxes={boxes}
-          selectedBoxId={selectedBoxId}
-          onBoxChange={handleBoxChange}
-          onBoxCreate={addCultureBox}
-        />
-      )}
-      {tab === 'vitality' && (
-        <VitalityPage
           boxes={boxes}
           selectedBoxId={selectedBoxId}
           onBoxChange={handleBoxChange}

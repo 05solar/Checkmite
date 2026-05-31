@@ -29,6 +29,7 @@ export const swaggerSpec = {
           measuredAt: { type: 'string', format: 'date-time' },
           countValue: { type: 'number', nullable: true },
           densityPerCm2: { type: 'number', nullable: true },
+          densityPerLiter: { type: 'number', nullable: true },
           vitalityScore: { type: 'number', nullable: true },
           activeRatio: { type: 'number', nullable: true },
           resultJson: { type: 'object', nullable: true },
@@ -204,14 +205,29 @@ export const swaggerSpec = {
                     from: { type: 'string', format: 'date' },
                     to: { type: 'string', format: 'date' },
                     days: { type: 'number' },
-                    currentDensityPerCm2: { type: 'number' },
-                    firstDensityPerCm2: { type: 'number' },
-                    densityChangePerCm2: { type: 'number' },
+                    currentCount: { type: 'number' },
+                    firstCount: { type: 'number' },
+                    countChange: { type: 'number' },
+                    countChangeRatePercent: { type: 'number' },
+                    countGrowthPerDay: { type: 'number' },
+                    logCountGrowthPerDay: { type: 'number' },
+                    currentDensityPerLiter: { type: 'number' },
+                    firstDensityPerLiter: { type: 'number' },
+                    densityChangePerLiter: { type: 'number' },
                     densityChangeRatePercent: { type: 'number' },
                     densityGrowthPerDay: { type: 'number' },
                     logDensityGrowthPerDay: { type: 'number' },
+                    latestVitalityScore: { type: 'number' },
+                    firstVitalityScore: { type: 'number' },
+                    averageVitalityScore: { type: 'number' },
+                    vitalityChange: { type: 'number' },
+                    vitalityChangeRatePercent: { type: 'number' },
+                    weightedGrowthRatePercent: { type: 'number' },
+                    countWeight: { type: 'number' },
+                    vitalityWeight: { type: 'number' },
                     growthLabel: { type: 'string', enum: ['증식 활발', '감소 추세', '유지 관찰'] },
-                    densityTrend: { type: 'array', items: { type: 'object', properties: { date: { type: 'string' }, densityPerCm2: { type: 'number' } } } },
+                    countTrend: { type: 'array', items: { type: 'object', properties: { date: { type: 'string' }, countValue: { type: 'number' } } } },
+                    densityTrend: { type: 'array', items: { type: 'object', properties: { date: { type: 'string' }, densityPerLiter: { type: 'number' } } } },
                     vitalityTrend: { type: 'array', items: { type: 'object', properties: { date: { type: 'string' }, score: { type: 'number' } } } },
                   },
                 },
@@ -239,6 +255,7 @@ export const swaggerSpec = {
                   measuredAt: { type: 'string', format: 'date-time' },
                   countValue: { type: 'number', nullable: true },
                   densityPerCm2: { type: 'number', nullable: true },
+                  densityPerLiter: { type: 'number', nullable: true },
                   vitalityScore: { type: 'number', nullable: true },
                   activeRatio: { type: 'number', nullable: true },
                   resultJson: { type: 'object', nullable: true },
@@ -320,45 +337,98 @@ export const swaggerSpec = {
     '/analysis/density': {
       post: {
         tags: ['분석'],
-        summary: '밀도 분석 (영상)',
+        summary: '통합 분석 (1개 이상의 1 mL 배지 영상으로 밀도와 활력도 산출)',
         requestBody: {
           required: true,
           content: {
             'multipart/form-data': {
               schema: {
                 type: 'object',
-                required: ['boxId', 'measuredAreaCm2', 'file'],
+                required: ['boxId', 'files'],
                 properties: {
                   boxId: { type: 'string', format: 'uuid' },
                   measuredAt: { type: 'string', format: 'date-time' },
-                  measuredAreaCm2: { type: 'number', description: '측정 면적 (cm²), 0 초과' },
-                  file: { type: 'string', format: 'binary', description: '영상 파일' },
+                  files: {
+                    type: 'array',
+                    minItems: 1,
+                    items: { type: 'string', format: 'binary' },
+                    description: '1개 이상의 1 mL 배지에서 촬영한 10초 이상 영상. 10초를 초과하는 영상은 앞 10초 구간만 분석한다.',
+                  },
                 },
               },
             },
           },
         },
         responses: {
-          200: {
-            description: '밀도 분석 결과',
+          202: {
+            description: '분석 작업 시작 및 진행 상태',
             content: {
               'application/json': {
                 schema: {
                   type: 'object',
                   properties: {
-                    measurementId: { type: 'string' },
-                    boxId: { type: 'string' },
-                    type: { type: 'string' },
-                    measuredAt: { type: 'string' },
-                    density: {
-                      type: 'object',
-                      properties: {
-                        currentDensityPerCm2: { type: 'number' },
-                        measuredAreaCm2: { type: 'number' },
-                        peakCount: { type: 'number' },
-                        averageCount: { type: 'number' },
+                    id: { type: 'string' },
+                    status: { type: 'string', enum: ['queued', 'processing', 'completed', 'failed'] },
+                    percent: { type: 'number' },
+                    message: { type: 'string' },
+                    currentSample: { type: 'number' },
+                    totalSamples: { type: 'number' },
+                    samples: { type: 'array', items: { type: 'object' } },
+                    result: { type: 'object', nullable: true },
+                    error: { type: 'string', nullable: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+
+    '/analysis/density/{jobId}/progress': {
+      get: {
+        tags: ['분석'],
+        summary: '통합 분석 진행률 조회',
+        parameters: [
+          { name: 'jobId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          200: {
+            description: '분석 진행률과 완료 결과',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string' },
+                    status: { type: 'string', enum: ['queued', 'processing', 'completed', 'failed'] },
+                    percent: { type: 'number' },
+                    message: { type: 'string' },
+                    currentSample: { type: 'number' },
+                    totalSamples: { type: 'number' },
+                    samples: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          sampleIndex: { type: 'number' },
+                          status: { type: 'string' },
+                          originalName: { type: 'string' },
+                          estimatedCountPerMl: { type: 'number' },
+                          vitalityScore: { type: 'number' },
+                        },
                       },
                     },
+                    result: {
+                      type: 'object',
+                      properties: {
+                        density: { type: 'object' },
+                        vitality: { type: 'object' },
+                        samples: { type: 'array', items: { type: 'object' } },
+                      },
+                      nullable: true,
+                    },
+                    error: { type: 'string', nullable: true },
                   },
                 },
               },

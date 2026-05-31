@@ -6,8 +6,7 @@ import type { TabId, Theme } from '../types';
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: 'detection', label: '객체 탐지', icon: 'scan' },
-  { id: 'density', label: '밀도 측정', icon: 'grid' },
-  { id: 'vitality', label: '활력도 측정', icon: 'pulse' },
+  { id: 'density', label: '통합 분석', icon: 'grid' },
   { id: 'growth', label: '증식률 분석', icon: 'growth' },
   { id: 'trash', label: '휴지통', icon: 'trash' },
 ];
