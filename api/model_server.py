@@ -38,7 +38,7 @@ DEFAULT_VITALITY_FAST_SPEED_RATIO = float(os.getenv("CHECKMITE_VITALITY_FAST_SPE
 DEFAULT_VITALITY_FAST_SPEED_SCORE = float(os.getenv("CHECKMITE_VITALITY_FAST_SPEED_SCORE", "0.92"))
 DEFAULT_DENSITY_TARGET_CLASS = os.getenv("CHECKMITE_DENSITY_TARGET_CLASS", "predator")
 DEFAULT_DENSITY_FRAME_INTERVAL_SECONDS = float(os.getenv("CHECKMITE_DENSITY_FRAME_INTERVAL_SECONDS", "1"))
-DEFAULT_DENSITY_COUNT_MULTIPLIER = float(os.getenv("CHECKMITE_DENSITY_COUNT_MULTIPLIER", "15"))
+DEFAULT_DENSITY_COUNT_MULTIPLIER = float(os.getenv("CHECKMITE_DENSITY_COUNT_MULTIPLIER", "10"))
 DEFAULT_DENSITY_MIN_VIDEO_SECONDS = float(os.getenv("CHECKMITE_DENSITY_MIN_VIDEO_SECONDS", "10"))
 DEFAULT_ANALYSIS_WINDOW_SECONDS = float(os.getenv("CHECKMITE_ANALYSIS_WINDOW_SECONDS", "10"))
 DEFAULT_DENSITY_MAX_FRAMES = int(os.getenv("CHECKMITE_DENSITY_MAX_FRAMES", "0"))
@@ -392,7 +392,7 @@ def analyze_vitality_video(
                     x1, y1, x2, y2 = [int(v) for v in detection["bbox"]]
                     track_id = detection.get("track_id", 0)
                     distance = detection.get("distance_from_previous_px", 0.0)
-                    color = (42, 210, 104) if distance >= DEFAULT_VITALITY_MOTION_THRESHOLD_PX else (70, 160, 255)
+                    color = (0, 0, 255)
                     cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
                     cv2.putText(
                         frame,

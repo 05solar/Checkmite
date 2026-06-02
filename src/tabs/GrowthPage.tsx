@@ -28,13 +28,18 @@ function numberValue(value: number | undefined, digits = 0) {
   });
 }
 
+function signedNumberValue(value: number | undefined, digits = 0) {
+  if (value === undefined || value === null) return '-';
+  const sign = value > 0 ? '+' : '';
+  return `${sign}${numberValue(value, digits)}`;
+}
+
 type AnalysisHistory = {
   key: string;
   measuredAt: string;
   types: Set<Measurement['type']>;
   countValue?: number;
   detectionCount?: number;
-  densityCount?: number;
   densityPerLiter?: number;
   vitalityScore?: number;
   activeRatio?: number;
@@ -70,14 +75,13 @@ function compactAnalysisHistory(measurements: Measurement[]) {
       group.detectionCount = item.countValue;
     }
     if (item.type === 'density') {
-      group.densityCount = item.countValue;
       group.densityPerLiter = item.densityPerLiter;
     }
     if (item.type === 'vitality') {
       group.vitalityScore = item.vitalityScore;
       group.activeRatio = item.activeRatio;
     }
-    group.countValue = group.densityCount ?? group.detectionCount ?? group.countValue;
+    group.countValue = group.densityPerLiter ?? group.detectionCount ?? group.countValue;
 
     return groups;
   }, []);
@@ -103,7 +107,7 @@ export function GrowthPage({
   const [deleteTarget, setDeleteTarget] = useState<CultureBox | null>(null);
   const [growth, setGrowth] = useState<GrowthResult | null>(null);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
-  const [expandedCard, setExpandedCard] = useState<'count' | 'vitality' | 'rate' | null>(null);
+  const [expandedCard, setExpandedCard] = useState<'count' | 'vitality' | 'cumulative' | 'recent' | null>(null);
 
   useEffect(() => {
     if (!box?.id) return;
@@ -128,8 +132,8 @@ export function GrowthPage({
     <div className="page">
       <div className="page-head">
         <div className="page-eyebrow"><span className="pe-dot" />증식률 분석 · GROWTH</div>
-        <h1 className="page-title">count · 활력도 기반 증식률 분석</h1>
-        <p className="page-desc">사육 박스별 누적 count와 활력도 변화를 3:1 가중치로 반영해 기간별 증식 상태를 보여줍니다.</p>
+        <h1 className="page-title">counting / 1L · 활력도 기반 증식률 분석</h1>
+        <p className="page-desc">사육 박스별 counting / 1L와 활력도 변화를 3:1 가중치로 반영하고, 직전 측정 대비 변화도 함께 관찰합니다.</p>
       </div>
 
       <div className="grid grid-2 growth-admin">
@@ -164,7 +168,7 @@ export function GrowthPage({
           {growthLabel}
         </div>
         <div className="growth-hero-formula">
-          <span>count 변화율 <strong>{growth?.countChangeRatePercent.toFixed(1) ?? '-'}%</strong> × 0.75</span>
+          <span>counting / 1L 변화율 <strong>{growth?.countChangeRatePercent.toFixed(1) ?? '-'}%</strong> × 0.75</span>
           <span className="ghf-sep">+</span>
           <span>활력도 변화율 <strong>{growth?.vitalityChangeRatePercent.toFixed(1) ?? '-'}%</strong> × 0.25</span>
           <span className="ghf-sep">=</span>
@@ -175,12 +179,20 @@ export function GrowthPage({
             <span className="ghf-thr-item ghf-thr-mid">−10 ~ 20 → 유지 관찰</span>
             <span className="ghf-thr-sep">·</span>
             <span className="ghf-thr-item ghf-thr-low">−10 미만 → 감소 추세</span>
+            <span className="ghf-thr-sep">·</span>
+            <span className="ghf-thr-item ghf-thr-mid">직전 대비 −20 이하 → 주의 관찰</span>
           </div>
+          {growth?.recentDropDetected && (
+            <div className="growth-recent-alert">
+              직전 측정 대비 counting / 1L {growth.recentCountChangeRatePercent.toFixed(1)}%,
+              활력도 {growth.recentVitalityChangeRatePercent.toFixed(1)}% 변화가 있어 추가 관찰이 필요합니다.
+            </div>
+          )}
         </div>
       </div>
 
-      <div className={`growth-sub${expandedCard ? ' growth-sub-has-expanded' : ' grid grid-3'}`}>
-        {(['count', 'vitality', 'rate'] as const).map((key) => {
+      <div className={`growth-sub${expandedCard ? ' growth-sub-has-expanded' : ' grid growth-sub-grid'}`}>
+        {(['count', 'vitality', 'cumulative', 'recent'] as const).map((key) => {
           const isExpanded = expandedCard === key;
           const toggle = () => setExpandedCard(isExpanded ? null : key);
           return (
@@ -194,9 +206,10 @@ export function GrowthPage({
             >
               <div className="card-head">
                 <div className="card-title">
-                  {key === 'count'    && <><Icon name="grid"  />현재 카운트</>}
+                  {key === 'count'    && <><Icon name="grid"  />현재 counting / 1L</>}
                   {key === 'vitality' && <><Icon name="pulse" />현재 활력도 그래프</>}
-                  {key === 'rate'     && <><Icon name="trend" />변화율</>}
+                  {key === 'cumulative' && <><Icon name="growth" />누적 증식률</>}
+                  {key === 'recent' && <><Icon name="trend" />최근 변화율</>}
                 </div>
                 <span className="growth-expand-icon">
                   {isExpanded ? <Icon name="x" /> : <Icon name="scan" />}
@@ -207,13 +220,15 @@ export function GrowthPage({
                 <>
                   <div className="stat-value tnum">
                     {growth && growth.currentCount > 0 ? numberValue(growth.currentCount) : '-'}
-                    <small>마리/mL</small>
+                    <small>counting / 1L</small>
                   </div>
                   <div className="stat-sub">{growth?.to ?? '측정 필요'}</div>
                   {isExpanded && (
                     <div className="growth-sub-detail">
-                      <span>초기 {numberValue(growth?.firstCount)} 마리/mL</span>
-                      <span>증가량 +{numberValue(growth?.countChange)} 마리/mL</span>
+                      <span>초기 {numberValue(growth?.firstCount)} counting / 1L</span>
+                      <span>누적 변화 {signedNumberValue(growth?.countChange)} counting / 1L</span>
+                      <span>직전 {numberValue(growth?.previousCount)} counting / 1L</span>
+                      <span>최근 변화 {signedNumberValue(growth?.recentCountChange)} counting / 1L</span>
                     </div>
                   )}
                 </>
@@ -227,6 +242,7 @@ export function GrowthPage({
                   {isExpanded && (
                     <div className="growth-sub-detail">
                       <span>초기 {growth?.firstVitalityScore.toFixed(1) ?? '-'}점</span>
+                      <span>직전 {growth?.previousVitalityScore.toFixed(1) ?? '-'}점</span>
                       <span>현재 {growth?.latestVitalityScore.toFixed(1) ?? '-'}점</span>
                       <span>평균 {growth?.averageVitalityScore.toFixed(1) ?? '-'}점</span>
                     </div>
@@ -234,16 +250,35 @@ export function GrowthPage({
                 </>
               )}
 
-              {key === 'rate' && (
+              {key === 'cumulative' && (
                 <>
                   <div className="stat-value tnum">
-                    {growth ? growth.countChangeRatePercent.toFixed(1) : '-'}<small>%</small>
+                    {growth ? growth.weightedGrowthRatePercent.toFixed(1) : '-'}<small>%</small>
                   </div>
-                  <div className="stat-sub">{growth ? `${growth.from} 대비 count 변화` : 'count 기반'}</div>
+                  <div className="stat-sub">{growth ? `${growth.from} 대비 누적 통합 변화` : '초기 대비'}</div>
                   {isExpanded && (
                     <div className="growth-sub-detail">
-                      <span>활력도 변화율 {growth?.vitalityChangeRatePercent.toFixed(1) ?? '-'}%</span>
-                      <span>통합 증식률 {growth?.weightedGrowthRatePercent.toFixed(1) ?? '-'}%</span>
+                      <span>누적 counting / 1L 변화율 {growth?.countChangeRatePercent.toFixed(1) ?? '-'}%</span>
+                      <span>누적 활력도 변화율 {growth?.vitalityChangeRatePercent.toFixed(1) ?? '-'}%</span>
+                      <span>가중치 counting / 1L 0.75</span>
+                      <span>가중치 활력도 0.25</span>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {key === 'recent' && (
+                <>
+                  <div className="stat-value tnum">
+                    {growth ? growth.recentCountChangeRatePercent.toFixed(1) : '-'}<small>%</small>
+                  </div>
+                  <div className="stat-sub">{growth ? '직전 측정 대비 counting / 1L 변화' : 'counting / 1L 기반'}</div>
+                  {isExpanded && (
+                    <div className="growth-sub-detail">
+                      <span>최근 활력도 변화율 {growth?.recentVitalityChangeRatePercent.toFixed(1) ?? '-'}%</span>
+                      <span>최근 통합 변화율 {growth?.recentWeightedGrowthRatePercent.toFixed(1) ?? '-'}%</span>
+                      <span>관찰 기준 {growth?.recentDropThresholdPercent.toFixed(0) ?? '-'}% 이하</span>
+                      <span>{growth?.recentDropDetected ? '주의 관찰 대상' : '최근 변화 안정'}</span>
                     </div>
                   )}
                 </>
@@ -262,8 +297,7 @@ export function GrowthPage({
           <div className="growth-row growth-row-head">
             <span>날짜</span>
             <span>분석</span>
-            <span>count</span>
-            <span>밀도(마리/L)</span>
+            <span>counting / 1L</span>
             <span>활력도</span>
           </div>
           {analysisHistory.length === 0 && (
@@ -277,7 +311,6 @@ export function GrowthPage({
                   <Badge kind={item.types.has('density') ? 'high' : 'neutral'}>{historyTypeLabel(item.types)}</Badge>
                 </span>
                 <span className="mono">{item.countValue?.toLocaleString() ?? '-'}</span>
-                <span className="mono">{item.densityPerLiter?.toLocaleString() ?? '-'}</span>
                 <span className="mono">{item.vitalityScore?.toFixed(1) ?? '-'}</span>
               </div>
             ))}
