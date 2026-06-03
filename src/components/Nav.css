@@ -20,6 +20,11 @@
   width: auto;
   height: 144px;
   object-fit: contain;
+  transition: filter .15s;
+}
+
+[data-theme="dark"] .brand-title {
+  filter: brightness(0) invert(1);
 }
 
 .nav-tabs { display: flex; align-items: center; gap: 2px; height: 100%; }
