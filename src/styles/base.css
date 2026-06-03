@@ -188,7 +188,23 @@ button { font-family: inherit; cursor: pointer; }
 
 /* ---- 비율 바 ---- */
 .ratio-bar { display: flex; height: 38px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
-.ratio-seg { display: flex; align-items: center; padding: 0 12px; font-size: 14px; font-weight: 700; color: #fff; min-width: 0; transition: flex-basis .5s ease; }
+.ratio-seg {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  transition: flex .5s ease;
+}
+.ratio-seg > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* ---- 등급 ---- */
 .grade-row { display: flex; align-items: center; gap: 8px; }

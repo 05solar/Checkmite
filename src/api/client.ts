@@ -151,6 +151,9 @@ export interface GrowthResult {
   countChangeRatePercent: number;
   countGrowthPerDay: number;
   logCountGrowthPerDay: number;
+  previousCount: number;
+  recentCountChange: number;
+  recentCountChangeRatePercent: number;
   currentDensityPerLiter: number;
   firstDensityPerLiter: number;
   densityChangePerLiter: number;
@@ -162,7 +165,13 @@ export interface GrowthResult {
   averageVitalityScore: number;
   vitalityChange: number;
   vitalityChangeRatePercent: number;
+  previousVitalityScore: number;
+  recentVitalityChange: number;
+  recentVitalityChangeRatePercent: number;
   weightedGrowthRatePercent: number;
+  recentWeightedGrowthRatePercent: number;
+  recentDropDetected: boolean;
+  recentDropThresholdPercent: number;
   countWeight: number;
   vitalityWeight: number;
   growthLabel: string;

@@ -122,8 +122,16 @@ function DetectionResultView({ file, boxes, onReset }: DetectionResultViewProps)
           {total > 0 ? (
             <>
               <div className="ratio-bar">
-                <div className="ratio-seg" style={{ background: 'var(--prey)', flexBasis: preyPct + '%' }}>먹이 {preyPct}%</div>
-                <div className="ratio-seg" style={{ background: 'var(--predator)', flexBasis: predPct + '%' }}>천적 {predPct}%</div>
+                {preys > 0 && (
+                  <div className="ratio-seg" style={{ background: 'var(--prey)', flex: `${preys} 1 0` }}>
+                    <span>먹이 {preyPct}%</span>
+                  </div>
+                )}
+                {preds > 0 && (
+                  <div className="ratio-seg" style={{ background: 'var(--predator)', flex: `${preds} 1 0` }}>
+                    <span>천적 {predPct}%</span>
+                  </div>
+                )}
               </div>
               <div className="hint" style={{ marginTop: 14 }}>
                 <Icon name="info" />
