@@ -84,7 +84,7 @@ function DensityResultView({ data, onReset }: DensityResultViewProps) {
       {/* 증식 활력 대표지표 */}
       <div className={`card vitality-hero-${noticeLevel}`}>
         <div className="card-head">
-          <div className="card-title"><Icon name="growth" />증식 활력 대표지표</div>
+          <div className="card-title">증식 활력 대표지표</div>
           <Badge kind="accent" dot>완료</Badge>
         </div>
         <div className="vitality-hero-body">
@@ -130,7 +130,7 @@ function DensityResultView({ data, onReset }: DensityResultViewProps) {
       <div className="grid grid-2">
         <div className="card">
           <div className="card-head">
-            <div className="card-title"><Icon name="grid" />밀도 정보</div>
+            <div className="card-title">밀도 정보</div>
             <Badge kind={gradeOf(densityLevel)} dot>{densityLevel}</Badge>
           </div>
           <div className="metric-row"><span className="mr-k">L당 밀도</span><span className="mr-v mono">{perLiter} 마리/L</span></div>
@@ -144,7 +144,7 @@ function DensityResultView({ data, onReset }: DensityResultViewProps) {
         </div>
         <div className="card">
           <div className="card-head">
-            <div className="card-title"><Icon name="pulse" />활력도 세부</div>
+            <div className="card-title">활력도 세부</div>
           </div>
           {activeRatioPct != null && (
             <div className="metric-row"><span className="mr-k">활동 개체 비율</span><span className="mr-v mono">{activeRatioPct}%</span></div>
@@ -167,7 +167,7 @@ function DensityResultView({ data, onReset }: DensityResultViewProps) {
       {vitality?.trackingVideoUrl && (
         <div className="card" style={{ marginTop: 18 }}>
           <div className="card-head">
-            <div className="card-title"><Icon name="video" />트래킹 영상</div>
+            <div className="card-title">트래킹 영상</div>
             <span className="card-sub">1번 영상 기준</span>
           </div>
           <div style={{ borderRadius: 8, overflow: 'hidden', background: '#050608' }}>
@@ -343,7 +343,7 @@ export function DensityPage({ boxes, selectedBoxId, onBoxChange, onBoxCreate }: 
             <div className="up-formats">video/* · 최대 500 MB / 파일</div>
           </div>
           <div className="card">
-            <div className="card-head"><div className="card-title"><Icon name="info" />측정 단계</div></div>
+            <div className="card-head"><div className="card-title">측정 단계</div></div>
             <div className="metric-row"><span className="mr-k">1. 샘플</span><span className="mr-v" style={{ color: 'var(--text-2)', fontWeight: 500 }}>1개 이상 1 mL 배지</span></div>
             <div className="metric-row"><span className="mr-k">2. 밀도</span><span className="mr-v" style={{ color: 'var(--text-2)', fontWeight: 500 }}>영상별 최대 count 프레임 선택</span></div>
             <div className="metric-row"><span className="mr-k">3. 활력도</span><span className="mr-v" style={{ color: 'var(--text-2)', fontWeight: 500 }}>같은 영상의 움직임 추적</span></div>
@@ -355,7 +355,7 @@ export function DensityPage({ boxes, selectedBoxId, onBoxChange, onBoxCreate }: 
         <div className="grid" style={{ maxWidth: 560 }}>
           <div className="card">
             <div className="card-head">
-              <div className="card-title"><Icon name="video" />선택된 영상</div>
+              <div className="card-title">선택된 영상</div>
               <Badge kind="accent">{files.length}개</Badge>
             </div>
             <div
@@ -406,7 +406,7 @@ export function DensityPage({ boxes, selectedBoxId, onBoxChange, onBoxCreate }: 
           {progress && (
             <div className="card" style={{ marginTop: 16 }}>
               <div className="card-head">
-                <div className="card-title"><Icon name="layers" />샘플별 분석 진행</div>
+                <div className="card-title">샘플별 분석 진행</div>
                 <Badge kind="accent">{progress.percent}%</Badge>
               </div>
               <div className="grid" style={{ gap: 8, maxHeight: 420, overflow: 'auto' }}>

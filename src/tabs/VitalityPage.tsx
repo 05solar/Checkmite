@@ -45,7 +45,7 @@ function VitalityResultView({ data, onReset }: VitalityResultViewProps) {
         </div>
 
         <div className="card">
-          <div className="card-head"><div className="card-title"><Icon name="spark" />활력도 세부 지표</div></div>
+          <div className="card-head"><div className="card-title">활력도 세부 지표</div></div>
           {activeRatioPct != null && (
             <div className="metric-row"><span className="mr-k">활동 개체 비율</span><span className="mr-v mono">{activeRatioPct}%</span></div>
           )}
@@ -60,7 +60,7 @@ function VitalityResultView({ data, onReset }: VitalityResultViewProps) {
         {data.trend.length > 1 && (
           <div className="card">
             <div className="card-head">
-              <div className="card-title"><Icon name="pulse" />시간별 활력도 추이</div>
+              <div className="card-title">시간별 활력도 추이</div>
               <span className="card-sub">초 단위</span>
             </div>
             <LineChart data={data.trend} xlabel="구간" />
@@ -69,7 +69,7 @@ function VitalityResultView({ data, onReset }: VitalityResultViewProps) {
 
         <div className="card">
           <div className="card-head">
-            <div className="card-title"><Icon name="cpu" />측정 정보</div>
+            <div className="card-title">측정 정보</div>
             <Badge kind="accent" dot>완료</Badge>
           </div>
           <div className="metric-row"><span className="mr-k">최종 점수</span><span className="mr-v mono">{data.score}점</span></div>
@@ -152,7 +152,7 @@ export function VitalityPage({ boxes, selectedBoxId, onBoxChange, onBoxCreate }:
         <div className="grid grid-2">
           <UploadZone accept="MP4 · MOV · AVI · 최대 500MB" kind="video" onPick={handlePick} />
           <div className="card">
-            <div className="card-head"><div className="card-title"><Icon name="info" />활력도란?</div></div>
+            <div className="card-head"><div className="card-title">활력도란?</div></div>
             <p style={{ margin: '0 0 4px', fontSize: 13.5, color: 'var(--text-2)', lineHeight: 1.6 }}>
               개체의 이동량·속도·활동 비율을 종합해 군집의 건강 상태를 0~100점으로 나타냅니다. 점수가 높을수록 활발하게 움직이는 개체가 많음을 의미합니다.
             </p>
