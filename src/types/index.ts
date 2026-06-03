@@ -1,4 +1,4 @@
-export type TabId = 'detection' | 'density' | 'growth' | 'trash';
+export type TabId = 'detection' | 'density' | 'growth' | 'boxes' | 'trash';
 export type Theme = 'light' | 'dark';
 export type PhaseId = 'idle' | 'file' | 'proc' | 'result';
 

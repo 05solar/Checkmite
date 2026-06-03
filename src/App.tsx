@@ -4,12 +4,13 @@ import { Nav } from './components/Nav';
 import { DetectionPage } from './tabs/DetectionPage';
 import { DensityPage } from './tabs/DensityPage';
 import { GrowthPage } from './tabs/GrowthPage';
+import { CultureBoxesPage } from './tabs/CultureBoxesPage';
 import { TrashPage } from './tabs/TrashPage';
 import { api } from './api/client';
 import type { CultureBox, TabId, Theme, TrashedCultureBox } from './types';
 
 const isTabId = (value: string | null): value is TabId =>
-  value === 'detection' || value === 'density' || value === 'growth' || value === 'trash';
+  value === 'detection' || value === 'density' || value === 'growth' || value === 'boxes' || value === 'trash';
 
 const savedTab = (): TabId => {
   const saved = localStorage.getItem('cm-tab');
@@ -67,6 +68,17 @@ export function App() {
       setSelectedBoxId(created.id);
     } catch (e) {
       console.error('사육박스 추가 실패', e);
+      throw e;
+    }
+  }, []);
+
+  const updateCultureBox = useCallback(async (id: string, data: Partial<Omit<CultureBox, 'id'>>) => {
+    try {
+      const updated = await api.updateBox(id, data);
+      setBoxes((prev) => prev.map((box) => (box.id === id ? updated : box)));
+      setSelectedBoxId(updated.id);
+    } catch (e) {
+      console.error('사육박스 수정 실패', e);
       throw e;
     }
   }, []);
@@ -138,7 +150,16 @@ export function App() {
           boxes={boxes}
           selectedBoxId={selectedBoxId}
           onBoxChange={handleBoxChange}
-          onBoxAdd={addCultureBox}
+          onBoxCreate={addCultureBox}
+        />
+      )}
+      {tab === 'boxes' && (
+        <CultureBoxesPage
+          boxes={boxes}
+          selectedBoxId={selectedBoxId}
+          onBoxChange={handleBoxChange}
+          onBoxCreate={addCultureBox}
+          onBoxUpdate={updateCultureBox}
           onBoxDelete={deleteCultureBox}
         />
       )}

@@ -93,7 +93,7 @@ function DetectionResultView({ file, boxes, onReset }: DetectionResultViewProps)
 
         <div className="card" style={{ marginTop: 18 }}>
           <div className="card-head">
-            <div className="card-title"><Icon name="cpu" />추론 정보</div>
+            <div className="card-title">추론 정보</div>
             <Badge kind="accent" dot>완료</Badge>
           </div>
           <div className="metric-row"><span className="mr-k">파일명</span><span className="mr-v mono">{file.name}</span></div>
@@ -257,7 +257,7 @@ export function DetectionPage({ boxes, selectedBoxId, onBoxChange, onBoxCreate }
         <div className="grid grid-2">
           <UploadZone accept="JPG · PNG · WEBP · 최대 20MB" kind="image" onPick={handlePick} />
           <div className="card">
-            <div className="card-head"><div className="card-title"><Icon name="info" />이렇게 동작합니다</div></div>
+            <div className="card-head"><div className="card-title">이렇게 동작합니다</div></div>
             <div className="metric-row"><span className="mr-k">1. 업로드</span><span className="mr-v" style={{ color: 'var(--text-2)', fontWeight: 500 }}>응애 사진 선택</span></div>
             <div className="metric-row"><span className="mr-k">2. 추론</span><span className="mr-v" style={{ color: 'var(--text-2)', fontWeight: 500 }}>서버 분석 실행</span></div>
             <div className="metric-row"><span className="mr-k">3. 결과</span><span className="mr-v" style={{ color: 'var(--text-2)', fontWeight: 500 }}>박스 · 마릿수 · 신뢰도</span></div>
